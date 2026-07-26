@@ -1,0 +1,40 @@
+{
+  "name": "@arlequins/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./seed": {
+      "types": "./dist/seed.d.ts",
+      "default": "./src/seed.ts"
+    },
+    "./seed-safety": {
+      "types": "./dist/seed-safety.d.ts",
+      "default": "./src/seed-safety.ts"
+    }
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsc",
+    "format": "biome format .",
+    "lint": "biome lint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "@arlequins/env": "workspace:*",
+    "@arlequins/types": "workspace:*",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

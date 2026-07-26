@@ -1,0 +1,13 @@
+beat-agent
+
+This project builds on ideas and patterns from the T3 / create-t3-turbo ecosystem,
+but is not a line-by-line fork: AWS SST, batch Step Functions, and shared packages
+diverge substantially from stock create-t3-turbo.
+
+Attribution for upstream material (MIT):
+
+  Copyright (c) 2023 Julius Marminge
+  https://github.com/t3-oss/create-t3-turbo
+
+Replace the copyright line in LICENSE when you publish your own fork, and keep
+or update this NOTICE if your policy requires listing third-party origins.

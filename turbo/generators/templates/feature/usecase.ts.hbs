@@ -1,0 +1,13 @@
+import type { {{ pascalCase name }}Port } from "../ports/{{ name }}-port";
+
+export function create{{ pascalCase name }}Service(deps: {
+  {{ camelCase name }}: {{ pascalCase name }}Port;
+}) {
+  return {
+    execute: deps.{{ camelCase name }}.execute,
+  };
+}
+
+export type {{ pascalCase name }}Service = ReturnType<
+  typeof create{{ pascalCase name }}Service
+>;

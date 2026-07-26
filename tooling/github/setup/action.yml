@@ -1,0 +1,29 @@
+name: "Setup and install"
+description: "Configure the repository runtime, pnpm cache, and dependencies"
+
+inputs:
+  frozen-lockfile:
+    description: "Fail when pnpm-lock.yaml is not synchronized"
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v5
+    - uses: actions/setup-node@v6
+      with:
+        cache: "pnpm"
+        cache-dependency-path: "pnpm-lock.yaml"
+        node-version-file: ".nvmrc"
+
+    - name: Install dependencies
+      shell: bash
+      env:
+        FROZEN_LOCKFILE: ${{ inputs.frozen-lockfile }}
+      run: |
+        if [ "$FROZEN_LOCKFILE" = "true" ]; then
+          pnpm install --frozen-lockfile
+        else
+          pnpm install --no-frozen-lockfile
+        fi

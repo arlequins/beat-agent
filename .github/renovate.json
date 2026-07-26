@@ -1,0 +1,121 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":configMigration",
+    ":maintainLockFilesWeekly",
+    "security:minimumReleaseAgeNpm"
+  ],
+  "dependencyDashboard": true,
+  "labels": ["dependencies"],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["before 5am on Monday"],
+  "prConcurrentLimit": 5,
+  "rangeStrategy": "bump",
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "automerge": false,
+  "automergeType": "pr",
+  "platformAutomerge": false,
+  "ignoreTests": false,
+  "packageRules": [
+    {
+      "description": "Ignore private workspace packages",
+      "matchPackageNames": ["@arlequins/**"],
+      "enabled": false
+    },
+    {
+      "description": "Automerge compatible patch, pin, and digest updates after CI",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch", "pin", "pinDigest", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge minor updates only for stable SemVer packages",
+      "matchManagers": ["npm"],
+      "matchCurrentVersion": "!/^0/",
+      "matchUpdateTypes": ["minor"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge passing weekly lockfile maintenance",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "automerge": true
+    },
+    {
+      "description": "Require review for every major update",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "description": "Isolate TypeScript major updates",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "TypeScript major"
+    },
+    {
+      "description": "Isolate Next.js and its React runtime major updates",
+      "matchPackageNames": [
+        "next",
+        "@next/**",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ],
+      "matchUpdateTypes": ["major"],
+      "groupName": "Next.js stack major"
+    },
+    {
+      "description": "Isolate SST major updates",
+      "matchPackageNames": ["sst", "@sst/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "SST major"
+    },
+    {
+      "description": "Isolate Drizzle major updates",
+      "matchPackageNames": ["drizzle-orm", "drizzle-kit", "drizzle-zod"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "Drizzle major"
+    },
+    {
+      "description": "Isolate authentication library major updates",
+      "matchPackageNames": [
+        "jose",
+        "oidc-client-ts",
+        "oidc-provider",
+        "@types/oidc-provider"
+      ],
+      "matchUpdateTypes": ["major"],
+      "groupName": "authentication stack major"
+    },
+    {
+      "description": "Keep AWS SDK clients on one compatible version line",
+      "matchPackageNames": ["@aws-sdk/**"],
+      "groupName": "AWS SDK"
+    },
+    {
+      "description": "Keep OpenTelemetry packages compatible",
+      "matchPackageNames": ["@opentelemetry/**"],
+      "groupName": "OpenTelemetry"
+    },
+    {
+      "description": "Keep Storybook and its testing integrations compatible",
+      "matchPackageNames": ["storybook", "@storybook/**"],
+      "groupName": "Storybook"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "automerge": false
+  },
+  "npm": {
+    "managerFilePatterns": [
+      "/(^|/)package\\.json$/",
+      "/(^|/)package\\.json\\.hbs$/"
+    ]
+  }
+}

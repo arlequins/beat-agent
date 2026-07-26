@@ -1,0 +1,7 @@
+import type { {{ pascalCase name }}Port } from "../services/ports/{{ name }}-port";
+
+export const {{ camelCase name }}Adaptor: {{ pascalCase name }}Port = {
+  async execute(input) {
+    return input;
+  },
+};

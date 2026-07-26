@@ -1,0 +1,275 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  FORCE_COLOR: 3
+  HUSKY: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  workflow-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Validate GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.7
+
+  environment-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - run: pnpm env:check
+
+  generators:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - run: pnpm test:generators
+
+  migration-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - run: pnpm test:migration-upgrade
+
+  database-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - name: Test repository against isolated PostgreSQL
+        run: pnpm test:integration
+
+  template-portability:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Test runtime and template initializer
+        run: pnpm test:runtime && pnpm test:template-init
+
+  template-output:
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [full, minimal]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Qualify generated preset
+        run: pnpm test:template-output ${{ matrix.preset }}
+
+  template-feature-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - name: Qualify pairwise feature combinations
+        run: pnpm test:template-matrix
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Biome lint
+        run: pnpm lint && pnpm lint:ws
+
+      - name: Dead code and dependencies
+        run: pnpm lint:dead-code
+
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Biome format
+        run: pnpm format
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Production build
+        run: pnpm build
+
+  sst-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Validate SST without AWS credentials
+        run: pnpm test:sst
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Test
+        run: pnpm test
+
+      - name: Check migrations
+        run: pnpm db:check
+
+  storybook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Build Storybook
+        run: pnpm storybook:build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Test browser authentication
+        run: pnpm test:e2e
+
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: ignore
+          name: playwright-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

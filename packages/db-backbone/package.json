@@ -1,0 +1,64 @@
+{
+  "name": "@arlequins/db-backbone",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./src/client.ts"
+    },
+    "./idempotency-store": {
+      "types": "./dist/idempotency-store.d.ts",
+      "default": "./src/idempotency-store.ts"
+    },
+    "./post-repository": {
+      "types": "./dist/post-repository.d.ts",
+      "default": "./src/post-repository.ts"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "default": "./src/schema.ts"
+    }
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsc",
+    "format": "biome format .",
+    "lint": "biome lint .",
+    "pull": "pnpm with-env drizzle-kit pull",
+    "push": "pnpm with-env drizzle-kit push",
+    "create-migration": "pnpm with-env drizzle-kit generate",
+    "check-migrations": "pnpm with-env drizzle-kit check",
+    "migrate": "pnpm with-env tsx ./scripts/migrate.ts",
+    "seed": "pnpm with-env tsx ./scripts/seed.ts",
+    "studio": "pnpm with-env drizzle-kit studio",
+    "test:integration": "vitest run src/post-repository.integration.test.ts",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false && tsc --noEmit -p tsconfig.drizzle.json",
+    "with-env": "dotenv -e ../../.env --"
+  },
+  "dependencies": {
+    "@arlequins/env": "workspace:*",
+    "@arlequins/service": "workspace:*",
+    "@arlequins/shared": "workspace:*",
+    "@arlequins/types": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "drizzle-zod": "catalog:",
+    "postgres": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "@testcontainers/postgresql": "catalog:",
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

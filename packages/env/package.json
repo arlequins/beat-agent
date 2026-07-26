@@ -1,0 +1,45 @@
+{
+  "name": "@arlequins/env",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./public-defaults": {
+      "types": "./dist/public-defaults.d.ts",
+      "default": "./dist/public-defaults.js"
+    },
+    "./skip-validation": {
+      "types": "./dist/skip-validation.d.ts",
+      "default": "./dist/skip-validation.js"
+    },
+    "./client-env": {
+      "types": "./dist/client-env.d.ts",
+      "default": "./dist/client-env.js"
+    },
+    "./server-env": {
+      "types": "./dist/env-server.d.ts",
+      "default": "./dist/env-server.js"
+    }
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsc",
+    "format": "biome format .",
+    "lint": "biome lint .",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.11",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

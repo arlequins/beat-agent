@@ -1,0 +1,34 @@
+{
+  "name": "@arlequins/batch",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "run": "pnpm with-env pnpm dlx tsx scripts/dev.ts",
+    "run:pipeline": "pnpm with-env pnpm dlx tsx scripts/run-pipeline.ts",
+    "sst:dev": "pnpm with-env sst dev",
+    "sst:deploy": "pnpm with-env sst deploy",
+    "sst:install": "pnpm with-env sst install",
+    "sst:remove": "pnpm with-env sst remove",
+    "format": "biome format .",
+    "lint": "biome lint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "with-env": "dotenv -e ../../.env --"
+  },
+  "dependencies": {
+    "@arlequins/db-backbone": "workspace:^",
+    "@arlequins/env": "workspace:*",
+    "@arlequins/logger": "workspace:*",
+    "@arlequins/service": "workspace:^",
+    "@aws-sdk/client-sfn": "^3.1090.0"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "@types/aws-lambda": "^8.10.162",
+    "@types/node": "catalog:",
+    "sst": "4.17.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

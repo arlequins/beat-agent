@@ -1,0 +1,181 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "topo": {
+      "dependsOn": ["^topo"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".cache/tsbuildinfo.json", "dist/**"]
+    },
+    "build-storybook": {
+      "dependsOn": ["^build"],
+      "outputs": ["storybook-static/**"]
+    },
+    "storybook": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev": {
+      "dependsOn": ["^dev"],
+      "cache": false,
+      "persistent": false
+    },
+    "format": {
+      "outputLogs": "new-only"
+    },
+    "lint": {
+      "dependsOn": ["^topo", "^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^topo", "^build"],
+      "outputs": [".cache/tsbuildinfo.json"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    },
+    "//#clean": {
+      "cache": false
+    },
+    "pull": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "interactive": true
+    },
+    "push": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "interactive": true
+    },
+    "check-migrations": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "migrate": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "seed": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "studio": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "sst:dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "env:pull": {
+      "cache": false
+    },
+    "env:push": {
+      "cache": false
+    },
+    "ui-add": {
+      "cache": false,
+      "interactive": true
+    }
+  },
+  "globalEnv": [
+    "SST_STAGE",
+    "NEXT_PUBLIC_SITE_URL",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_OIDC_AUTHORITY",
+    "NEXT_PUBLIC_OIDC_CLIENT_ID",
+    "NEXT_PUBLIC_OIDC_RESOURCE",
+    "NEXT_PUBLIC_OIDC_SCOPE",
+    "VPC_ID",
+    "SUBNET_IDS",
+    "SECURITY_GROUP_IDS",
+    "AURORA_ENABLED",
+    "AURORA_SUBNET_IDS",
+    "AURORA_SECURITY_GROUP_IDS",
+    "AURORA_DATABASE_NAME",
+    "AURORA_MASTER_USERNAME",
+    "AURORA_MASTER_PASSWORD",
+    "AURORA_MIN_ACU",
+    "AURORA_MAX_ACU",
+    "DATABASE_HOST",
+    "DATABASE_PORT",
+    "DATABASE_USER",
+    "DATABASE_PASSWORD",
+    "DATABASE_NAME",
+    "POSTGRES_POOL_MAX",
+    "DATABASE_SSL_MODE",
+    "SEED_SAMPLE_DATA",
+    "OIDC_ISSUER_URL",
+    "OIDC_AUDIENCE",
+    "OIDC_JWKS_URI",
+    "OIDC_ALLOWED_ALGORITHMS",
+    "OIDC_PROVIDERS_JSON",
+    "AUTH_BOOTSTRAP_ADMIN_IDENTITIES",
+    "OIDC_MOCK_PORT",
+    "OIDC_MOCK_ISSUER",
+    "API_CORS_ORIGINS",
+    "API_PORT",
+    "API_DEPLOYMENT_PRESET",
+    "API_CUSTOM_DOMAIN",
+    "API_WAF_ENABLED",
+    "API_THROTTLE_RATE_LIMIT",
+    "API_THROTTLE_BURST_LIMIT",
+    "API_BODY_LIMIT_BYTES",
+    "API_RATE_LIMIT_REQUESTS",
+    "API_RATE_LIMIT_WINDOW_SECONDS",
+    "ALERT_TOPIC_ARN",
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "OTEL_EXPORTER_OTLP_HEADERS",
+    "OTEL_SERVICE_NAME",
+    "OTEL_SERVICE_VERSION",
+    "S3_CACHE_BUCKET",
+    "S3_CACHE_PREFIX",
+    "S3_CACHE_TTL_SECONDS",
+    "S3_CACHE_ENDPOINT",
+    "S3_CACHE_FORCE_PATH_STYLE",
+    "S3_UPLOAD_BUCKET",
+    "S3_UPLOAD_PREFIX",
+    "OLLAMA_BASE_URL",
+    "OLLAMA_BASE_MODEL",
+    "OLLAMA_MODEL"
+  ],
+  "globalPassThroughEnv": [
+    "API_URL",
+    "NODE_ENV",
+    "NO_COLOR",
+    "TERM",
+    "CI",
+    "VERCEL",
+    "VERCEL_ENV",
+    "VERCEL_URL",
+    "npm_lifecycle_event",
+    "npm_config_user_agent",
+    "SECRET_NAME",
+    "SECRETS_MANAGER_PLAIN_KEY",
+    "SSM_ENV_PATH",
+    "SST_STAGE",
+    "STAGE",
+    "SST_AWS_PROFILE",
+    "SST_AWS_REGION",
+    "AWS_PROFILE",
+    "AWS_REGION",
+    "ENV_TARGET",
+    "SM_PREFIX",
+    "STATE_MACHINE_ARN",
+    "CHANGE_BASE",
+    "DOCKER_HOST",
+    "TESTCONTAINERS_RYUK_DISABLED",
+    "DEPLOY_APPLICATION",
+    "DEPLOY_OPERATION",
+    "DEPLOY_ROLE_ARN",
+    "DEPLOY_SECRET_NAME",
+    "DEPLOY_STAGE"
+  ]
+}

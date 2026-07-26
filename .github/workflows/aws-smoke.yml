@@ -1,0 +1,54 @@
+name: AWS sandbox smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_url:
+        description: Optional Function URL override
+        required: false
+        type: string
+      gateway_url:
+        description: Optional API Gateway URL override
+        required: false
+        type: string
+  schedule:
+    - cron: "31 4 * * 2"
+
+concurrency:
+  group: aws-sandbox-smoke
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    environment: sandbox
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [function-url, api-gateway]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: Select sandbox URL
+        id: endpoint
+        env:
+          FUNCTION_URL: ${{ inputs.function_url || vars.AWS_SMOKE_FUNCTION_URL }}
+          GATEWAY_URL: ${{ inputs.gateway_url || vars.AWS_SMOKE_GATEWAY_URL }}
+        run: |
+          if [ "${{ matrix.preset }}" = "function-url" ]; then
+            URL="$FUNCTION_URL"
+          else
+            URL="$GATEWAY_URL"
+          fi
+          node -e 'const value = process.argv[1]; const url = new URL(value); if (url.protocol !== "https:") throw new Error("Smoke endpoint must use HTTPS");' "$URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Smoke test
+        run: node scripts/smoke-api.mjs "${{ steps.endpoint.outputs.url }}"

@@ -1,0 +1,16 @@
+services:
+  postgres-e2e:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    tmpfs:
+      - /var/lib/postgresql

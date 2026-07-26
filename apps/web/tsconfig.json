@@ -1,0 +1,20 @@
+{
+  "extends": "@arlequins/tsconfig/base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "dom", "dom.iterable"],
+    "jsx": "preserve",
+    "paths": {
+      "~/*": ["./src/*"]
+    },
+    "plugins": [{ "name": "next" }]
+  },
+  "include": [
+    "src",
+    "next.config.js",
+    ".next/types/**/*.ts",
+    "sst.config.ts",
+    "sst-env.d.ts",
+    "sst-globals.d.ts"
+  ],
+  "exclude": ["node_modules", ".next", "out"]
+}

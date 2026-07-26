@@ -1,0 +1,16 @@
+import { describe, expect, it, vi } from "vitest";
+import { create{{ pascalCase name }}Service } from "./application/use-cases/{{ name }}";
+
+describe("create{{ pascalCase name }}Service", () => {
+  it("delegates {{ kind }} execution through its port", async () => {
+    const execute = vi.fn().mockResolvedValue({ message: "done" });
+    const service = create{{ pascalCase name }}Service({
+      {{ camelCase name }}: { execute },
+    });
+
+    await expect(service.execute({ message: "start" })).resolves.toEqual({
+      message: "done",
+    });
+    expect(execute).toHaveBeenCalledWith({ message: "start" });
+  });
+});

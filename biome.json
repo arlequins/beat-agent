@@ -1,0 +1,73 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!apps/api/src/routeTree.gen.ts",
+      "!apps/**/sst-env.d.ts",
+      "!apps/**/.nitro",
+      "!apps/**/.output",
+      "!apps/**/.tanstack",
+      "!apps/web/.next",
+      "!**/storybook-static"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "json": {
+    "parser": {
+      "allowComments": true,
+      "allowTrailingCommas": true
+    },
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noNonNullAssertion": "off",
+        "useImportType": "error"
+      },
+      "suspicious": {
+        "noDuplicateCustomProperties": "off",
+        "noAssignInExpressions": "error",
+        "noImplicitAnyLet": "error"
+      },
+      "a11y": {
+        "useSemanticElements": "off"
+      }
+    }
+  }
+}

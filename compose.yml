@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    ports:
+      - "${POSTGRES_HOST_PORT:-55433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d app"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    volumes:
+      - postgres-data:/var/lib/postgresql
+  # Optional local-only model service. Native Ollama on Apple Silicon is usually faster.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  postgres-data:
+  ollama-data:

@@ -1,0 +1,45 @@
+name: Quickstart deployment qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-generated-template:
+    runs-on: ubuntu-latest
+    environment: quickstart
+    timeout-minutes: 45
+    concurrency:
+      group: quickstart-deployment
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - name: Initialize a generic application
+        run: pnpm template:init -- --name quickstart-app --scope @quickstart --domain quickstart.example.org --preset full --force
+      - run: pnpm install --no-frozen-lockfile
+      - run: cp .env.example .env
+      - run: pnpm check:fix && pnpm check && pnpm test && pnpm typecheck && pnpm test:sst
+      - name: Validate AWS configuration
+        env:
+          AWS_QUICKSTART_ROLE_ARN: ${{ vars.AWS_QUICKSTART_ROLE_ARN }}
+        run: test -n "$AWS_QUICKSTART_ROLE_ARN"
+      - id: aws
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_QUICKSTART_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Deploy generated API and web
+        run: |
+          pnpm sst:ws api deploy -- --stage quickstart
+          pnpm sst:ws web deploy -- --stage quickstart
+      - name: Remove generated deployment
+        if: always() && steps.aws.outcome == 'success'
+        run: |
+          pnpm sst:ws web remove -- --stage quickstart || true
+          pnpm sst:ws api remove -- --stage quickstart || true

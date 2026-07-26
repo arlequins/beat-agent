@@ -1,0 +1,77 @@
+name: Deploy SST application
+
+on:
+  workflow_call:
+    inputs:
+      application:
+        description: Workspace to deploy
+        required: true
+        type: string
+      environment:
+        description: GitHub environment and SST stage
+        required: true
+        type: string
+      operation:
+        description: deploy or remove
+        required: true
+        type: string
+      role_arn:
+        description: AWS IAM role assumed through GitHub OIDC
+        required: true
+        type: string
+      secret_name:
+        description: Secrets Manager base name or ARN for deployment environment values
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 30
+    concurrency:
+      group: sst-${{ inputs.environment }}-${{ inputs.application }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+
+      - name: Validate deployment inputs
+        env:
+          DEPLOY_APPLICATION: ${{ inputs.application }}
+          DEPLOY_OPERATION: ${{ inputs.operation }}
+          DEPLOY_ROLE_ARN: ${{ inputs.role_arn }}
+          DEPLOY_SECRET_NAME: ${{ inputs.secret_name }}
+          DEPLOY_STAGE: ${{ inputs.environment }}
+        run: node scripts/validate-deployment-input.mjs
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ inputs.role_arn }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Load deployment environment
+        env:
+          DEPLOY_SECRET_NAME: ${{ inputs.secret_name }}
+          DEPLOY_STAGE: ${{ inputs.environment }}
+        run: >-
+          pnpm env:pull --
+          --secret-name "$DEPLOY_SECRET_NAME"
+          --stage "$DEPLOY_STAGE"
+          --env-target root
+
+      - name: Run SST operation
+        env:
+          DEPLOY_APPLICATION: ${{ inputs.application }}
+          DEPLOY_OPERATION: ${{ inputs.operation }}
+          DEPLOY_STAGE: ${{ inputs.environment }}
+        run: >-
+          pnpm sst:ws "$DEPLOY_APPLICATION" "$DEPLOY_OPERATION"
+          -- --stage "$DEPLOY_STAGE"

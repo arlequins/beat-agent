@@ -1,0 +1,21 @@
+{
+  "name": "@arlequins/database-infra",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "sst:deploy": "pnpm with-env sst deploy",
+    "sst:install": "pnpm with-env sst install",
+    "sst:remove": "pnpm with-env sst remove",
+    "typecheck": "tsc --noEmit",
+    "with-env": "dotenv -e ../../.env --"
+  },
+  "dependencies": {
+    "@arlequins/env": "workspace:*"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "sst": "4.17.1",
+    "typescript": "catalog:"
+  }
+}

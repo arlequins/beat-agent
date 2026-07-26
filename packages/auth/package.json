@@ -1,0 +1,29 @@
+{
+  "name": "@arlequins/auth",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./authorization": "./src/authorization.ts"
+  },
+  "license": "MIT",
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "format": "biome format .",
+    "lint": "biome lint .",
+    "test": "vitest run",
+    "with-env": "dotenv -e ../../.env --",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arlequins/env": "workspace:*",
+    "jose": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
