@@ -6,7 +6,7 @@ describe("createTextDocumentExtraction", () => {
   it("removes active HTML content before indexing", async () => {
     const result = await createTextDocumentExtraction().extract({
       bytes: new TextEncoder().encode(
-        "<h1>Hello</h1><script>secret()</script><p>world</p>",
+        "<h1>Hello</h1><script>secret()</script ><style>hidden {}</style ><p>world</p>",
       ),
       contentType: "text/html",
       filename: "notes.html",

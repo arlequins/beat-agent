@@ -22,7 +22,7 @@ test("signs in with PKCE, reaches the protected API, and signs out", async ({
 
   await expect(page).toHaveURL("http://localhost:3100/");
   await expect(page.getByTestId("api-session")).toHaveText(
-    "API session: Local Test User",
+    "연결됨: Local Test User",
   );
 
   await expect(page.getByRole("heading", { name: "Beat" })).toBeVisible();
