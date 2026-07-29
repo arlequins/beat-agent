@@ -90,6 +90,18 @@ export const serverEnv = createEnv({
       .min(1)
       .max(90)
       .optional(),
+    /** Fixed-window limit for internal OIDC password attempts per IP and identity. */
+    OIDC_LOGIN_RATE_LIMIT_REQUESTS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
+    /** Fixed-window duration for internal OIDC password attempts. */
+    OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
     /** Comma-separated browser origins accepted by the Hono API. */
     API_CORS_ORIGINS: z.string().optional(),
     /** Local Hono server port. */
@@ -186,6 +198,9 @@ export const serverEnv = createEnv({
     OIDC_SIGNING_KEY_ID: process.env.OIDC_SIGNING_KEY_ID,
     INTERNAL_OIDC_ENABLED: process.env.INTERNAL_OIDC_ENABLED,
     OIDC_REFRESH_TOKEN_TTL_DAYS: process.env.OIDC_REFRESH_TOKEN_TTL_DAYS,
+    OIDC_LOGIN_RATE_LIMIT_REQUESTS: process.env.OIDC_LOGIN_RATE_LIMIT_REQUESTS,
+    OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS:
+      process.env.OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS,
     API_CORS_ORIGINS: process.env.API_CORS_ORIGINS,
     API_PORT: process.env.API_PORT,
     API_DEPLOYMENT_PRESET: process.env.API_DEPLOYMENT_PRESET,

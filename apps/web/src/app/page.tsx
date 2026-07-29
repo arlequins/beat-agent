@@ -3,12 +3,21 @@
 import { useAuth } from "~/auth/provider";
 import { AuthStatus } from "~/auth/status";
 import { AgentChat } from "~/components/agent-chat";
+import Link from "next/link";
 
 export default function HomePage() {
   const { user } = useAuth();
   return (
     <main className="container max-w-3xl py-16">
       <AuthStatus />
+      {user ? (
+        <Link
+          className="text-muted-foreground mt-4 inline-block text-sm underline underline-offset-4"
+          href="/admin/"
+        >
+          관리자 보안 센터
+        </Link>
+      ) : null}
       <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
         Arlequin의 로컬 개인 비서
       </p>

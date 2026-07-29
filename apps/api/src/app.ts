@@ -230,7 +230,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
   });
 
   if (serverEnv.INTERNAL_OIDC_ENABLED) {
-    app.route("/oidc", createInternalOidcRouter(db));
+    app.route("/oidc", createInternalOidcRouter(db, { rateLimiter }));
   }
 
   app.post("/agent/stream", async (context) => {

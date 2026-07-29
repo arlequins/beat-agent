@@ -16,10 +16,12 @@ import {
 } from "@arlequins/db-backbone/schema";
 import { clientEnv, serverEnv } from "@arlequins/env";
 import { and, eq, gt, isNull } from "drizzle-orm";
-import { exportJWK, importJWK, SignJWT } from "jose";
+import type { RateLimitPort } from "@arlequins/service";
+import { exportJWK, importJWK, jwtVerify, SignJWT } from "jose";
 import { Hono } from "hono";
 
 import type { ApiBindings } from "./app";
+import { createInMemoryRateLimitAdapter } from "./adaptors/in-memory-rate-limit";
 
 const accessTokenLifetimeSeconds = 10 * 60;
 const authorizationCodeLifetimeMs = 60_000;
@@ -35,6 +37,8 @@ type AuthorizationRequest = {
 };
 
 type OidcUser = typeof AppUser.$inferSelect;
+
+type InternalOidcOptions = { rateLimiter?: RateLimitPort };
 
 function base64Url(value: Uint8Array) {
   return Buffer.from(value).toString("base64url");
@@ -173,6 +177,11 @@ async function verifyPassword(password: string, encoded: string) {
 
 async function ensureInitialAdministrator(database: Database) {
   const config = configuration();
+  const [existingIdentity] = await database
+    .select({ userId: LocalIdentity.userId })
+    .from(LocalIdentity)
+    .limit(1);
+  if (existingIdentity) return;
   const email = required(
     serverEnv.AUTH_INITIAL_ADMIN_EMAIL,
     "AUTH_INITIAL_ADMIN_EMAIL",
@@ -181,12 +190,6 @@ async function ensureInitialAdministrator(database: Database) {
     serverEnv.AUTH_INITIAL_ADMIN_PASSWORD,
     "AUTH_INITIAL_ADMIN_PASSWORD",
   );
-  const [existing] = await database
-    .select({ userId: LocalIdentity.userId })
-    .from(LocalIdentity)
-    .where(eq(LocalIdentity.email, email));
-  if (existing) return;
-
   await database.transaction(async (tx) => {
     const [identity] = await tx
       .select({ userId: LocalIdentity.userId })
@@ -256,8 +259,67 @@ async function issueTokens(
   return { accessToken, idToken, refreshToken };
 }
 
-export function createInternalOidcRouter(database: Database) {
+function clientIp(context: {
+  req: { header: (name: string) => string | undefined };
+}) {
+  return (
+    context.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+  );
+}
+
+async function revokeAllRefreshTokens(database: Database, userId: string) {
+  await database
+    .update(RefreshToken)
+    .set({ revokedAt: new Date() })
+    .where(
+      and(eq(RefreshToken.userId, userId), isNull(RefreshToken.revokedAt)),
+    );
+}
+
+async function requireAdministrator(
+  context: { req: { header: (name: string) => string | undefined } },
+  database: Database,
+) {
+  const authorization = context.req.header("authorization");
+  const token = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length)
+    : undefined;
+  if (!token) return undefined;
+  const config = configuration();
+  try {
+    const verified = await jwtVerify(
+      token,
+      await importJWK(config.privateJwk, "ES256"),
+      { audience: config.resource, issuer: config.issuer },
+    );
+    if (verified.protectedHeader.typ !== "at+jwt" || !verified.payload.sub) {
+      return undefined;
+    }
+    const [user] = await database
+      .select({ id: AppUser.id, email: AppUser.email, name: AppUser.name })
+      .from(AppUser)
+      .innerJoin(UserRole, eq(UserRole.userId, AppUser.id))
+      .where(
+        and(
+          eq(AppUser.issuer, config.issuer),
+          eq(AppUser.subject, verified.payload.sub),
+          eq(UserRole.role, "admin"),
+        ),
+      );
+    return user;
+  } catch {
+    return undefined;
+  }
+}
+
+export function createInternalOidcRouter(
+  database: Database,
+  options: InternalOidcOptions = {},
+) {
   const app = new Hono<ApiBindings>();
+  const loginRateLimiter =
+    options.rateLimiter ??
+    createInMemoryRateLimitAdapter({ maxEntries: 20_000 });
 
   app.get("/.well-known/openid-configuration", (context) => {
     const config = configuration();
@@ -306,8 +368,46 @@ export function createInternalOidcRouter(database: Database) {
     const form = new URLSearchParams(await context.req.text());
     try {
       const request = parseAuthorizationRequest(form);
-      await ensureInitialAdministrator(database);
       const email = form.get("email")?.trim().toLowerCase() ?? "";
+      const now = new Date();
+      const limit = serverEnv.OIDC_LOGIN_RATE_LIMIT_REQUESTS ?? 5;
+      const windowMs =
+        (serverEnv.OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS ?? 15 * 60) * 1_000;
+      const [byIp, byIdentity] = await Promise.all([
+        loginRateLimiter.consume({
+          key: `oidc-login:ip:${clientIp(context)}`,
+          limit,
+          now,
+          windowMs,
+        }),
+        loginRateLimiter.consume({
+          key: `oidc-login:identity:${digest(email)}`,
+          limit,
+          now,
+          windowMs,
+        }),
+      ]);
+      if (!byIp.allowed || !byIdentity.allowed) {
+        const resetAt = Math.max(
+          byIp.resetAt.getTime(),
+          byIdentity.resetAt.getTime(),
+        );
+        context.header(
+          "Retry-After",
+          String(Math.max(1, Math.ceil((resetAt - Date.now()) / 1_000))),
+        );
+        context
+          .get("logger")
+          .warn("oidc.login.rate_limited", { identityHash: digest(email) });
+        return context.html(
+          loginPage(
+            request,
+            "로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요.",
+          ),
+          429,
+        );
+      }
+      await ensureInitialAdministrator(database);
       const password = form.get("password") ?? "";
       const [identity] = await database
         .select({ passwordHash: LocalIdentity.passwordHash, user: AppUser })
@@ -318,6 +418,9 @@ export function createInternalOidcRouter(database: Database) {
         !identity ||
         !(await verifyPassword(password, identity.passwordHash))
       ) {
+        context
+          .get("logger")
+          .warn("oidc.login.failed", { identityHash: digest(email) });
         return context.html(
           loginPage(request, "이메일 또는 비밀번호가 올바르지 않습니다."),
           401,
@@ -337,6 +440,9 @@ export function createInternalOidcRouter(database: Database) {
       const redirect = new URL(request.redirectUri);
       redirect.searchParams.set("code", code);
       if (request.state) redirect.searchParams.set("state", request.state);
+      context
+        .get("logger")
+        .info("oidc.login.succeeded", { userId: identity.user.id });
       return context.redirect(redirect.toString(), 302);
     } catch (error) {
       return context.text(
@@ -411,7 +517,27 @@ export function createInternalOidcRouter(database: Database) {
             ),
           )
           .returning();
-        if (!grant) return context.json({ error: "invalid_grant" }, 400);
+        if (!grant) {
+          const [replayed] = await database
+            .select({
+              revokedAt: RefreshToken.revokedAt,
+              userId: RefreshToken.userId,
+            })
+            .from(RefreshToken)
+            .where(
+              and(
+                eq(RefreshToken.tokenHash, digest(refreshToken)),
+                eq(RefreshToken.clientId, config.clientId),
+              ),
+            );
+          if (replayed?.revokedAt) {
+            await revokeAllRefreshTokens(database, replayed.userId);
+            context.get("logger").warn("oidc.refresh_token.reuse_detected", {
+              userId: replayed.userId,
+            });
+          }
+          return context.json({ error: "invalid_grant" }, 400);
+        }
         const [user] = await database
           .select()
           .from(AppUser)
@@ -458,6 +584,41 @@ export function createInternalOidcRouter(database: Database) {
         );
     }
     return new Response(null, { status: 200 });
+  });
+
+  app.get("/sessions", async (context) => {
+    const administrator = await requireAdministrator(context, database);
+    if (!administrator) return context.json({ error: "Unauthorized" }, 401);
+    const activeTokens = await database
+      .select({
+        createdAt: RefreshToken.createdAt,
+        expiresAt: RefreshToken.expiresAt,
+      })
+      .from(RefreshToken)
+      .where(
+        and(
+          eq(RefreshToken.userId, administrator.id),
+          gt(RefreshToken.expiresAt, new Date()),
+          isNull(RefreshToken.revokedAt),
+        ),
+      );
+    return context.json({
+      activePersistentLogins: activeTokens.length,
+      sessions: activeTokens.map((session) => ({
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+      })),
+    });
+  });
+
+  app.post("/sessions/revoke", async (context) => {
+    const administrator = await requireAdministrator(context, database);
+    if (!administrator) return context.json({ error: "Unauthorized" }, 401);
+    await revokeAllRefreshTokens(database, administrator.id);
+    context.get("logger").warn("oidc.sessions.revoked_by_administrator", {
+      userId: administrator.id,
+    });
+    return context.json({ revoked: true });
   });
 
   return app;

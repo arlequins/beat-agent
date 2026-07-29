@@ -68,6 +68,38 @@ export async function finishLogout(): Promise<void> {
   await getUserManager().removeUser();
 }
 
+type PersistentLogin = { createdAt: string; expiresAt: string };
+
+export type OidcSessionSummary = {
+  activePersistentLogins: number;
+  sessions: PersistentLogin[];
+};
+
+async function oidcAuthorizedRequest<T>(
+  path: string,
+  accessToken: string,
+  method = "GET",
+): Promise<T> {
+  const response = await fetch(`${env.NEXT_PUBLIC_OIDC_AUTHORITY}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    method,
+  });
+  if (!response.ok) throw new Error("관리자 세션을 확인할 수 없습니다.");
+  return (await response.json()) as T;
+}
+
+export function getOidcSessions(accessToken: string) {
+  return oidcAuthorizedRequest<OidcSessionSummary>("/sessions", accessToken);
+}
+
+export function revokeOidcSessions(accessToken: string) {
+  return oidcAuthorizedRequest<{ revoked: true }>(
+    "/sessions/revoke",
+    accessToken,
+    "POST",
+  );
+}
+
 export function safeReturnPath(state: unknown): string {
   if (!state || typeof state !== "object") return "/";
   const returnTo = Reflect.get(state, "returnTo");
