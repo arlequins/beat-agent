@@ -30,8 +30,8 @@ export function getUserManager(): UserManager {
     resource: env.NEXT_PUBLIC_OIDC_RESOURCE,
     automaticSilentRenew: true,
     monitorSession: false,
-    stateStore: new WebStorageStateStore({ store: window.sessionStorage }),
-    userStore: new WebStorageStateStore({ store: window.sessionStorage }),
+    stateStore: new WebStorageStateStore({ store: window.localStorage }),
+    userStore: new WebStorageStateStore({ store: window.localStorage }),
   });
   return userManager;
 }
