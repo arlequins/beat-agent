@@ -28,6 +28,15 @@ function streamErrorMessage(error: unknown): string {
   return message;
 }
 
+const feedbackLabels = {
+  helpful: "도움됨",
+  incorrect: "부정확함",
+  missing: "누락",
+  "needs-investigation": "조사 요청",
+} as const;
+
+type FeedbackKind = keyof typeof feedbackLabels;
+
 function MessageCitations({
   messageId,
   workspaceId,
@@ -75,6 +84,7 @@ export function AgentChat() {
   const [question, setQuestion] = useState("");
   const [streamedText, setStreamedText] = useState("");
   const [streamError, setStreamError] = useState<string>();
+  const [feedbackNotice, setFeedbackNotice] = useState<string>();
   const [isStreaming, setIsStreaming] = useState(false);
   const { user } = useAuth();
   const workspaces = useQuery(trpc.agent.workspaces.queryOptions());
@@ -219,7 +229,12 @@ export function AgentChat() {
     }),
   );
   const submitFeedback = useMutation(
-    trpc.agent.submitFeedback.mutationOptions(),
+    trpc.agent.submitFeedback.mutationOptions({
+      onSuccess: (_result, input) =>
+        setFeedbackNotice(
+          `${feedbackLabels[input.kind]} 피드백을 기록했습니다.`,
+        ),
+    }),
   );
   function submitWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -249,9 +264,12 @@ export function AgentChat() {
   async function selectDocumentFile(file?: File) {
     setDocumentFileError(undefined);
     if (!file) return;
-    if (!/\.(md|txt)$/i.test(file.name) && file.type !== "text/plain") {
+    if (
+      !/\.(html?|md|txt)$/i.test(file.name) &&
+      !["text/html", "text/markdown", "text/plain"].includes(file.type)
+    ) {
       setDocumentFileError(
-        "현재는 안전하게 텍스트와 Markdown 파일만 지원합니다.",
+        "현재는 안전하게 텍스트, Markdown, HTML 파일만 지원합니다.",
       );
       return;
     }
@@ -419,7 +437,7 @@ export function AgentChat() {
           </summary>
           <form className="mt-3 space-y-2" onSubmit={submitDocument}>
             <Input
-              accept=".md,.txt,text/plain"
+              accept=".html,.htm,.md,.txt,text/html,text/markdown,text/plain"
               aria-label="문서 파일 선택"
               onChange={(event) => selectDocumentFile(event.target.files?.[0])}
               type="file"
@@ -584,34 +602,25 @@ export function AgentChat() {
               </p>
               {message.role === "assistant" && (
                 <div className="mt-3 flex gap-2">
-                  <button
-                    className="text-muted-foreground text-xs hover:underline"
-                    disabled={submitFeedback.isPending}
-                    onClick={() =>
-                      submitFeedback.mutate({
-                        kind: "helpful",
-                        messageId: message.id,
-                        workspaceId,
-                      })
-                    }
-                    type="button"
-                  >
-                    도움됨
-                  </button>
-                  <button
-                    className="text-muted-foreground text-xs hover:underline"
-                    disabled={submitFeedback.isPending}
-                    onClick={() =>
-                      submitFeedback.mutate({
-                        kind: "needs-investigation",
-                        messageId: message.id,
-                        workspaceId,
-                      })
-                    }
-                    type="button"
-                  >
-                    조사 요청
-                  </button>
+                  {(
+                    Object.entries(feedbackLabels) as [FeedbackKind, string][]
+                  ).map(([kind, label]) => (
+                    <button
+                      className="text-muted-foreground text-xs hover:underline"
+                      disabled={submitFeedback.isPending}
+                      key={kind}
+                      onClick={() =>
+                        submitFeedback.mutate({
+                          kind,
+                          messageId: message.id,
+                          workspaceId,
+                        })
+                      }
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               )}
               {message.role === "assistant" && workspaceId && (
@@ -657,6 +666,11 @@ export function AgentChat() {
           {streamError && (
             <p className="text-destructive mt-3 text-sm" role="alert">
               {streamError}
+            </p>
+          )}
+          {feedbackNotice && (
+            <p className="text-muted-foreground mt-3 text-xs" role="status">
+              {feedbackNotice}
             </p>
           )}
         </form>
