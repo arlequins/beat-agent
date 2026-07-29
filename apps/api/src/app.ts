@@ -19,6 +19,7 @@ import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { createInMemoryRateLimitAdapter } from "./adaptors/in-memory-rate-limit";
 import { mapApplicationErrorToHttp } from "./application-error";
+import { createInternalOidcRouter } from "./internal-oidc";
 import { registerOpenApiRoutes } from "./openapi";
 
 export type ApiBindings = {
@@ -227,6 +228,10 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
     externalReadinessChecks: externalChecks,
     readinessCheck,
   });
+
+  if (serverEnv.INTERNAL_OIDC_ENABLED) {
+    app.route("/oidc", createInternalOidcRouter(db));
+  }
 
   app.post("/agent/stream", async (context) => {
     const parsed = completeAgentInputSchema.safeParse(await context.req.json());

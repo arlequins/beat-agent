@@ -253,6 +253,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.12.32
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.4
     devDependencies:
       '@arlequins/tsconfig':
         specifier: workspace:*

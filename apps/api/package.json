@@ -31,7 +31,8 @@
     "@scalar/hono-api-reference": "catalog:",
     "@trpc/server": "catalog:",
     "drizzle-orm": "catalog:",
-    "hono": "catalog:"
+    "hono": "catalog:",
+    "jose": "catalog:"
   },
   "devDependencies": {
     "@arlequins/tsconfig": "workspace:*",

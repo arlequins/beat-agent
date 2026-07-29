@@ -69,6 +69,27 @@ export const serverEnv = createEnv({
     OIDC_PROVIDERS_JSON: z.string().optional(),
     /** Comma-separated OIDC `issuer|subject` identities promoted to administrator. */
     AUTH_BOOTSTRAP_ADMIN_IDENTITIES: z.string().optional(),
+    /** Initial Beat-owned administrator login. Required only until provisioned. */
+    AUTH_INITIAL_ADMIN_EMAIL: z.string().email().optional(),
+    /** Initial Beat-owned administrator password; it never reaches the browser. */
+    AUTH_INITIAL_ADMIN_PASSWORD: z.string().min(16).optional(),
+    /** JSON Web Key with private ES256 material for Beat's OIDC issuer. */
+    OIDC_SIGNING_PRIVATE_JWK: z.string().min(1).optional(),
+    /** Stable key identifier exposed from Beat's JWKS endpoint. */
+    OIDC_SIGNING_KEY_ID: z.string().min(1).optional(),
+    /** Enables Beat's first-party production OIDC issuer. */
+    INTERNAL_OIDC_ENABLED: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional()
+      .default(false),
+    /** Lifetime of a rotating refresh token. */
+    OIDC_REFRESH_TOKEN_TTL_DAYS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(90)
+      .optional(),
     /** Comma-separated browser origins accepted by the Hono API. */
     API_CORS_ORIGINS: z.string().optional(),
     /** Local Hono server port. */
@@ -159,6 +180,12 @@ export const serverEnv = createEnv({
     OIDC_PROVIDERS_JSON: process.env.OIDC_PROVIDERS_JSON,
     AUTH_BOOTSTRAP_ADMIN_IDENTITIES:
       process.env.AUTH_BOOTSTRAP_ADMIN_IDENTITIES,
+    AUTH_INITIAL_ADMIN_EMAIL: process.env.AUTH_INITIAL_ADMIN_EMAIL,
+    AUTH_INITIAL_ADMIN_PASSWORD: process.env.AUTH_INITIAL_ADMIN_PASSWORD,
+    OIDC_SIGNING_PRIVATE_JWK: process.env.OIDC_SIGNING_PRIVATE_JWK,
+    OIDC_SIGNING_KEY_ID: process.env.OIDC_SIGNING_KEY_ID,
+    INTERNAL_OIDC_ENABLED: process.env.INTERNAL_OIDC_ENABLED,
+    OIDC_REFRESH_TOKEN_TTL_DAYS: process.env.OIDC_REFRESH_TOKEN_TTL_DAYS,
     API_CORS_ORIGINS: process.env.API_CORS_ORIGINS,
     API_PORT: process.env.API_PORT,
     API_DEPLOYMENT_PRESET: process.env.API_DEPLOYMENT_PRESET,

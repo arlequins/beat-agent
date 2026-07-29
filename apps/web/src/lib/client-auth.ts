@@ -5,6 +5,12 @@ import { env } from "~/env";
 
 let userManager: UserManager | undefined;
 
+function oidcScope() {
+  const scopes = new Set(env.NEXT_PUBLIC_OIDC_SCOPE.split(/\s+/));
+  scopes.add("offline_access");
+  return [...scopes].join(" ");
+}
+
 function siteUrl(path: string): string {
   return new URL(path, `${env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/`).href;
 }
@@ -20,10 +26,10 @@ export function getUserManager(): UserManager {
     redirect_uri: siteUrl("auth/callback/"),
     post_logout_redirect_uri: siteUrl("auth/logout-callback/"),
     response_type: "code",
-    scope: env.NEXT_PUBLIC_OIDC_SCOPE,
+    scope: oidcScope(),
     resource: env.NEXT_PUBLIC_OIDC_RESOURCE,
-    automaticSilentRenew: false,
-    monitorSession: true,
+    automaticSilentRenew: true,
+    monitorSession: false,
     stateStore: new WebStorageStateStore({ store: window.sessionStorage }),
     userStore: new WebStorageStateStore({ store: window.sessionStorage }),
   });
@@ -43,17 +49,23 @@ export function finishLogin(): Promise<User> {
 export async function startLogout(): Promise<void> {
   const manager = getUserManager();
   const user = await manager.getUser();
-  if (!user) {
-    window.location.assign(siteUrl(""));
-    return;
+  if (user?.refresh_token) {
+    await fetch(`${env.NEXT_PUBLIC_OIDC_AUTHORITY}/revoke`, {
+      body: new URLSearchParams({
+        client_id: env.NEXT_PUBLIC_OIDC_CLIENT_ID,
+        token: user.refresh_token,
+        token_type_hint: "refresh_token",
+      }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    });
   }
-  await manager.signoutRedirect({ id_token_hint: user.id_token });
+  await manager.removeUser();
+  window.location.assign(siteUrl(""));
 }
 
 export async function finishLogout(): Promise<void> {
-  const manager = getUserManager();
-  await manager.signoutRedirectCallback();
-  await manager.removeUser();
+  await getUserManager().removeUser();
 }
 
 export function safeReturnPath(state: unknown): string {
