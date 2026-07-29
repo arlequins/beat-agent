@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       application:
-        description: Application to deploy
+        description: Deployment target
         required: true
         type: choice
-        options: [api, web, batch]
+        default: all
+        options: [all, api, web, batch]
 
 concurrency:
-  group: production-${{ inputs.application }}
+  group: production
   cancel-in-progress: false
 
 permissions:
@@ -18,11 +19,37 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  deploy-api:
+    if: inputs.application == 'all' || inputs.application == 'api'
     uses: ./.github/workflows/deploy-reusable.yml
     with:
-      application: ${{ inputs.application }}
-      environment: production
+      application: api
+      github_environment: production
+      stage: production
       operation: deploy
-      role_arn: ${{ vars.AWS_PRODUCTION_ROLE_ARN }}
-      secret_name: ${{ vars.AWS_PRODUCTION_SECRET_NAME }}
+
+  deploy-web:
+    needs: deploy-api
+    if: >-
+      always() &&
+      (inputs.application == 'all' || inputs.application == 'web') &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped')
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: web
+      github_environment: production
+      stage: production
+      operation: deploy
+
+  deploy-batch:
+    needs: deploy-api
+    if: >-
+      always() &&
+      (inputs.application == 'all' || inputs.application == 'batch') &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped')
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: batch
+      github_environment: production
+      stage: production
+      operation: deploy

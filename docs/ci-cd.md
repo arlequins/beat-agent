@@ -37,20 +37,33 @@ Enable merge queue only after the same CI checks have run successfully for a
 `merge_group` event. Require at least one review, dismiss stale approvals, and
 block force pushes and branch deletion.
 
-Set these repository variables when the associated workflow is enabled:
+Configure deployment values as GitHub Environment secrets, not as
+repository-wide variables. The reusable deployment job selects `preview` for
+pull-request stages and `production` for the manual production workflow.
 
-| Variable | Used by |
+| Environment secret | Used by |
 | --- | --- |
-| `AWS_REGION` | All AWS deployment workflows |
-| `AWS_PREVIEW_ROLE_ARN` | Preview deploy and cleanup |
-| `AWS_PREVIEW_SECRET_NAME` | Preview runtime and SST environment |
-| `AWS_PRODUCTION_ROLE_ARN` | Production deployment |
-| `AWS_PRODUCTION_SECRET_NAME` | Production runtime and SST environment |
+| `AWS_DEPLOY_REGION` | SST provider and GitHub OIDC credential configuration for that environment |
+| `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC role for preview deploy/cleanup or production deployment |
 | `AWS_QUICKSTART_ROLE_ARN` | Generated-template cloud qualification |
 | `AWS_SMOKE_FUNCTION_URL` | Scheduled Function URL smoke test |
 | `AWS_SMOKE_GATEWAY_URL` | Scheduled API Gateway smoke test |
 | `LOAD_TEST_API_URL` | k6 baseline |
 | `DEPENDENCY_REVIEW_ENABLED` | Makes dependency-review findings blocking when set to `true` |
+
+Every deployable GitHub Environment also needs the secret
+`DEPLOYMENT_ENV_FILE`. Its value is the complete dotenv payload written to the
+runner's root `.env` immediately before SST runs. Keep OIDC configuration,
+database connection values, CORS origins, and `NEXT_PUBLIC_*` deployment values
+there; never commit it or print it in workflow logs. GitHub masks the secret,
+and the workflow writes it with owner-only file permissions.
+
+The API must be deployed before the static web application. For unattended API
+then web deployment, use stable custom domains: set `API_CUSTOM_DOMAIN` and set
+`NEXT_PUBLIC_API_URL` to that same HTTPS API URL in `DEPLOYMENT_ENV_FILE` before
+triggering the workflow. The web build cannot safely discover a newly-created
+Function URL after it has started, so a generated endpoint is not suitable for
+the one-click API-plus-web path.
 
 No release secret is required: Release Please uses the workflow's short-lived
 `GITHUB_TOKEN`. `RELEASE_PLEASE_TOKEN` is an optional override for a GitHub App
@@ -68,22 +81,18 @@ version PR until one of these authorization paths is available.
 
 ## Deployment Environment Contract
 
-`AWS_PREVIEW_SECRET_NAME` and `AWS_PRODUCTION_SECRET_NAME` may be a complete
-Secrets Manager ARN or a base name. A complete ARN is read directly. A base
-name resolves to `<stage>/<base-name>/root`, such as
-`production/environments/root`.
+Create a `preview` Environment and a `production` Environment. Put the three
+environment-specific secrets `AWS_DEPLOY_REGION`, `AWS_DEPLOY_ROLE_ARN`, and
+`DEPLOYMENT_ENV_FILE` on each one. Set the non-sensitive repository variable
+`PREVIEW_DEPLOY_ENABLED=true` only after the preview Environment is complete;
+until then preview jobs are skipped. Production deployment always passes through
+the protected `production` Environment; configure required reviewers and
+prevent self-review there.
 
-The secret value must be a JSON object containing the environment values
-required by the selected SST application. The reusable workflow validates all
-deployment inputs, assumes the configured AWS role, writes the secret to the
-runner's root `.env`, and only then invokes SST. The assumed role therefore
-needs least-privilege access to that secret and to the resources managed by the
-selected stack.
-
-Preview deployment is skipped for forks and when either preview variable is
-missing. Production deployment always passes through the protected
-`production` GitHub Environment. Configure required reviewers and prevent
-self-review there.
+Preview stages retain the SST name `pr-NUMBER` while using the shared `preview`
+GitHub Environment. This permits a single non-production secret set without
+exposing production configuration to pull-request deployments. The production
+workflow can deploy `all` (API, then web, then batch) or a single application.
 
 Production application deployment is intentionally manual and separate from
 Release Please. A generic template cannot know the target database network,

@@ -13,38 +13,53 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  deploy-api:
     if: >-
       github.event.action != 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      vars.AWS_PREVIEW_ROLE_ARN != '' &&
-      vars.AWS_PREVIEW_SECRET_NAME != ''
-    strategy:
-      fail-fast: false
-      matrix:
-        application: [api, web]
+      vars.PREVIEW_DEPLOY_ENABLED == 'true'
     uses: ./.github/workflows/deploy-reusable.yml
     with:
-      application: ${{ matrix.application }}
-      environment: pr-${{ github.event.pull_request.number }}
+      application: api
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
       operation: deploy
-      role_arn: ${{ vars.AWS_PREVIEW_ROLE_ARN }}
-      secret_name: ${{ vars.AWS_PREVIEW_SECRET_NAME }}
 
-  remove:
+  deploy-web:
+    needs: deploy-api
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.deploy-api.result == 'success'
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: web
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
+      operation: deploy
+
+  remove-web:
     if: >-
       github.event.action == 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      vars.AWS_PREVIEW_ROLE_ARN != '' &&
-      vars.AWS_PREVIEW_SECRET_NAME != ''
-    strategy:
-      matrix:
-        application: [web, api]
-      max-parallel: 1
+      vars.PREVIEW_DEPLOY_ENABLED == 'true'
     uses: ./.github/workflows/deploy-reusable.yml
     with:
-      application: ${{ matrix.application }}
-      environment: pr-${{ github.event.pull_request.number }}
+      application: web
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
       operation: remove
-      role_arn: ${{ vars.AWS_PREVIEW_ROLE_ARN }}
-      secret_name: ${{ vars.AWS_PREVIEW_SECRET_NAME }}
+
+  remove-api:
+    needs: remove-web
+    if: >-
+      always() &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.remove-web.result == 'success'
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: api
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
+      operation: remove

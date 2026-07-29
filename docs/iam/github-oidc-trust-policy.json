@@ -13,7 +13,7 @@
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:OWNER/REPOSITORY:environment:pr-*",
+            "repo:OWNER/REPOSITORY:environment:preview",
             "repo:OWNER/REPOSITORY:environment:production"
           ]
         }

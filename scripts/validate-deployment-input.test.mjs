@@ -5,8 +5,8 @@ import { validateDeploymentInput } from "./validate-deployment-input.mjs";
 const validInput = {
   application: "api",
   operation: "deploy",
+  region: "ap-northeast-1",
   roleArn: "arn:aws:iam::123456789012:role/github-production",
-  secretName: "arn:aws:secretsmanager:us-east-1:123456789012:secret:app",
   stage: "production",
 };
 
@@ -44,8 +44,9 @@ describe("deployment input validation", () => {
       /role ARN is required/,
     );
     assert.throws(
-      () => validateDeploymentInput({ ...validInput, secretName: "" }),
-      /deployment secret name is required/,
+      () =>
+        validateDeploymentInput({ ...validInput, region: "unsafe; command" }),
+      /AWS region must be/,
     );
   });
 });

@@ -2,21 +2,29 @@
 
 ## AWS OIDC Setup
 
-Create separate AWS IAM roles for preview and production. Configure GitHub's OIDC provider as the federated principal and restrict the `sub` claim to this repository. Preview jobs use dynamic GitHub Environments, so allow `repo:OWNER/REPOSITORY:environment:pr-*` for the preview role. Allow only `repo:OWNER/REPOSITORY:environment:production` for the production role.
+Create separate AWS IAM roles for preview and production. Configure GitHub's
+OIDC provider as the federated principal and restrict the `sub` claim to this
+repository. The workflow uses the stable GitHub Environments `preview` and
+`production`, so allow only `repo:OWNER/REPOSITORY:environment:preview` for the
+preview role and `repo:OWNER/REPOSITORY:environment:production` for the
+production role.
 
-Store role ARNs as GitHub variables. Role ARNs identify resources and are not credentials:
+Store these values as secrets on the matching GitHub Environment. Role ARNs
+identify resources and are not credentials, but keeping all deployment inputs
+in the same protected Environment prevents accidental cross-environment use:
 
-- repository: `AWS_PREVIEW_ROLE_ARN`
-- repository: `AWS_PRODUCTION_ROLE_ARN`
-- repository: `AWS_PREVIEW_SECRET_NAME` and `AWS_PRODUCTION_SECRET_NAME`
+- environment secret: `AWS_DEPLOY_ROLE_ARN`
+- environment secret: `AWS_DEPLOY_REGION`
+- environment secret: `DEPLOYMENT_ENV_FILE`
 
-The secret-name variables identify the Secrets Manager values loaded into the
-deployment runner after OIDC authentication. They may contain a base name or a
-complete ARN; they are identifiers, not secret payloads. Preview jobs remain
-skipped until both preview variables are configured. See
+`DEPLOYMENT_ENV_FILE` is a complete dotenv payload. The deployment runner
+writes it to its root `.env` after OIDC authentication and before SST runs; it
+does not fetch runtime configuration from AWS Secrets Manager. Preview jobs
+remain skipped until the repository variable `PREVIEW_DEPLOY_ENABLED=true` is
+set after the preview Environment is configured. See
 [CI/CD Operations](ci-cd.md) for the complete environment contract.
 
-Set `AWS_REGION` as an environment variable. Do not store AWS access keys in GitHub.
+Set `AWS_DEPLOY_REGION` as a GitHub Environment secret. Do not store AWS access keys in GitHub.
 
 Start with the trust-policy template in [`docs/iam/github-oidc-trust-policy.json`](./iam/github-oidc-trust-policy.json). Replace placeholders and retain only the subject appropriate for each role before applying it. The deployment permission policy is intentionally not universal: generate it from CloudTrail after a sandbox deployment, then constrain actions and resources to the stacks, state bucket, asset bucket, and roles owned by this repository.
 
@@ -26,9 +34,18 @@ it to a single model, document prefix, and S3 Vectors index before deployment.
 
 ## Environments and Branch Protection
 
-Create a `production` GitHub Environment with required reviewers, prevent self-review, restrict deployment to protected release branches or tags, and configure an approval timeout. Protect `main` and `develop`, require the CI and Security checks, require review, dismiss stale approvals, and disallow force pushes.
+Create `preview` and `production` GitHub Environments. Require reviewers,
+prevent self-review, restrict deployment to protected release branches or tags,
+and configure an approval timeout for `production`; do not give the preview
+Environment production secrets. Protect `main` and `develop`, require the CI
+and Security checks, require review, dismiss stale approvals, and disallow
+force pushes.
 
-Preview deployments only run for branches in the same repository. Fork pull requests never receive AWS credentials. A closed pull request removes its `pr-NUMBER` stage.
+Preview deployments only run for branches in the same repository. Fork pull
+requests never receive AWS credentials. A closed pull request removes its
+`pr-NUMBER` stage. API then web deployment requires stable custom-domain values
+in the environment secret; do not rely on a newly-created Function URL for a
+static web build.
 
 ## Security Checks
 

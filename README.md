@@ -221,7 +221,7 @@ Read [Deployment and Supply-Chain Security](./docs/deployment-security.md) befor
 configuring GitHub OIDC roles or production environments. Deployment-specific
 commands and tradeoffs live in [`apps/api/README.md`](./apps/api/README.md) and
 [`apps/batch/README.md`](./apps/batch/README.md).
-The complete workflow map and required GitHub variables are documented in
+The complete workflow map and required GitHub Environment variables and secrets are documented in
 [CI/CD Operations](./docs/ci-cd.md).
 
 ## Documentation
