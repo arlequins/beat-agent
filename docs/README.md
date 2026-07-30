@@ -6,23 +6,23 @@ local application; the pages below explain design decisions and ongoing work.
 
 ## Start Here
 
-1. [Application architecture](architecture.md) explains workspace boundaries
-   and the browser-to-database request flow.
-2. [Developer experience](developer-experience.md) covers generators, fast
+1. [S3-primary architecture](s3-primary-architecture.md) defines the immutable
+   event, conditional state, release, concurrency and recovery model.
+2. [Application architecture](architecture.md) explains workspace boundaries
+   and the browser-to-S3 request flow.
+3. [Developer experience](developer-experience.md) covers generators, fast
    feedback commands, and template qualification.
-3. [Template readiness](template-readiness.md) lists the capabilities to retain
+4. [Template readiness](template-readiness.md) lists the capabilities to retain
    or deliberately remove when adapting the template.
-4. [Generic application baseline](generic-application.md) explains the reusable
+5. [Generic application baseline](generic-application.md) explains the reusable
    CRUD, authorization, upload, and Clean Architecture example.
 
 ## Development
 
 - [OpenID Connect authentication](authentication.md): provider registration,
   local identity provider, token validation, and application authorization.
-- [Database operations](database-operations.md): migration order, backups,
-  restore verification, and failure recovery.
 - [Agent operations](agent-operations.md): readiness monitoring, alert policy,
-  quotas, backups, and retrieval-incident recovery.
+  quotas, S3 recovery, and retrieval-incident recovery.
 - [Local agent demo](local-agent-demo.md): verify Ollama prerequisites and run
   the full no-cloud chat and RAG walkthrough.
 - [SST local testing](sst-local-testing.md): what can be validated without SST

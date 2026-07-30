@@ -10,7 +10,7 @@ test("signs in with PKCE, reaches the protected API, and signs out", async ({
   const readiness = await request.get(`${apiUrl}/health/ready`);
   expect(readiness.status()).toBe(200);
   await expect(readiness.json()).resolves.toMatchObject({
-    checks: { database: "ok" },
+    checks: { storage: "ok" },
   });
 
   await page.goto("/");

@@ -1,198 +1,116 @@
-# Agent Platform Template
+# Beat Agent Platform
 
-This template is a reusable conversational-agent foundation, not a code-agent
-implementation. A project made from it can begin as a personal assistant,
-reflection partner, or enterprise document assistant; repository analysis and
-data lineage are later additions.
+Beat은 Arlequin 한 사람을 위한 개인 비서이자 반성적 대화 파트너다. 의료 또는
+정신건강 진단을 하지 않으며 전문 치료와 긴급 지원을 대체하지 않는다.
 
-## Runtime boundary
+## Runtime 경계
 
-`@arlequins/agent-core` owns the provider-neutral agent loop:
+`@arlequins/agent-core`는 provider-neutral loop만 담당한다.
 
 ```text
 question
-  -> workspace-scoped memory search
-  -> workspace-scoped knowledge search
-  -> model provider stream
-  -> text events and citations
+  -> workspace-scoped approved memory
+  -> active knowledge release
+  -> Ollama or Bedrock model
+  -> streaming text and citations
 ```
 
-It deliberately has no AWS SDK, database, HTTP, or UI dependency. Adapters are
-added at the boundary:
+Core에는 AWS SDK, HTTP, UI와 저장 구현이 없다. Beat composition root가 다음
+adapter를 선택한다.
 
-| Port | Local implementation | AWS implementation |
+| Port | 로컬 | AWS |
 | --- | --- | --- |
-| Model provider | Ollama or a deterministic test double | Amazon Bedrock adapter |
-| Memory | PostgreSQL/Docker | Aurora PostgreSQL or a DynamoDB adapter |
-| Knowledge retrieval | Ollama embeddings stored with authorized chunks, then keyword fallback | S3 source objects + S3 Vectors adapter |
-| Long-running work | direct local runner | Step Functions + Lambda |
+| 모델 | loopback Ollama | opt-in Bedrock Converse Stream |
+| 주 저장소 | Docker MinIO | private versioned S3 |
+| 기억·지식 검색 | S3 객체의 embedding/keyword | 활성 S3 release, 이후 선택적 S3 Vectors |
+| 긴 작업 | 직접 실행 | SQS FIFO + Lambda worker |
+| 인증 | OIDC mock | 기존 Beat OIDC |
 
-The API converts agent events into a streaming response. tRPC remains the typed
-CRUD transport for conversations, documents, workspaces, feedback, and admin
-operations.
+## 저장과 권한
 
-## First template milestones
+대화, 메시지, 문서와 청크, Citation, 기억, 피드백, 조사, 평가를 workspace
+prefix 아래 저장한다. 모든 repository 호출은 먼저 membership을 확인한다.
 
-1. **Conversation:** profile selection, streaming messages, titles, history,
-   summaries, and workspace isolation.
-2. **Memory and feedback:** durable memories are candidates until reviewed;
-   feedback can be helpful, incorrect, missing, or needs-investigation.
-3. **Document RAG:** original files in S3, retrieval IDs in S3 Vectors, and
-   authorization plus citation resolution in the relational store.
-4. **Learning loop:** feedback becomes a reviewed investigation, knowledge
-   patch, and regression evaluation before it affects future answers.
-5. **Enterprise code analysis:** CodeBuild creates repository-wide manifests;
-   Step Functions and Lambda process shards and activate a verified version.
+- 새 엔터티와 이벤트는 `If-None-Match: *`
+- 상태 변경과 head 이동은 ETag `If-Match`
+- 삭제는 tombstone
+- 운영 변경은 append-only audit event
+- Citation은 active knowledge release ID 고정
 
-## Free-tier-first profile
+구체적인 key 구조, 동시성, release와 복구는
+[S3-primary 아키텍처](./s3-primary-architecture.md)에 정의한다.
 
-The template must be useful for a newly created AWS account without creating
-standing infrastructure by default.
+## 기억과 상담
+
+원본 대화와 상담 기록은 사용자가 요청한 장기 기억 정책에 따라 저장한다.
+답변 context에는 승인되고 만료되지 않은 기억만 들어간다.
+
+기억의 상태:
 
 ```text
-Local default: Docker PostgreSQL + OIDC mock + Ollama
-AWS personal proof of concept: Lambda + S3 + DynamoDB + Cognito (when no other OIDC exists)
-Enterprise upgrade: Aurora + S3 Vectors + Bedrock + CodeBuild
+candidate -> approved
+          -> rejected
 ```
 
-Free-tier eligibility, promotional credits, and regional availability change.
-Treat this as a design policy rather than a price guarantee. In particular,
-Amazon Bedrock inference and Aurora capacity must be budgeted as potentially
-billable. Set AWS Budgets before enabling either service.
+원본 보존과 모델 학습 사용은 별도 결정이다. `approved` 기억도 평가된 release를
+활성화하기 전까지 현재 답변에는 영향을 주지 않는다.
 
-The optional Aurora stack is documented in [Aurora PostgreSQL with SST](./aurora-sst.md).
+## 문서와 Citation
 
-## Durable data and authorization
+텍스트, Markdown과 HTML은 서버에서 정규화한 뒤 최대 1,200자 청크로 나눈다.
+로컬 `nomic-embed-text`를 사용할 수 있으면 embedding cosine score를 사용하고,
+그렇지 않으면 keyword score로 대체한다.
 
-The `agent` PostgreSQL schema is the durable control plane. It contains
-workspaces and memberships, conversations and messages, reviewed memory,
-documents and chunks, message citations, feedback and investigations, and
-index runs. Every tenant-owned query enters through a workspace membership
-check. Vector IDs and object URIs are metadata only: a vector hit is never
-shown until its chunk, document, and workspace are resolved in PostgreSQL.
+PDF와 Office 문서는 추후 malware scan과 서버 parser를 거치는 별도 비동기
+ingestion으로 추가한다. 브라우저가 binary 문서를 해석하지 않는다.
 
-`0003_agent-platform.sql` is additive and safe to apply to a local Docker
-database before enabling Aurora. It deliberately does not create a vector
-extension or an AWS resource.
+답변 Citation은 다음을 보존한다.
 
-The typed `agent.*` tRPC contract accepts workspace-scoped IDs, validates size,
-hash, source URI, roles, and feedback kinds, and derives the actor from the
-authenticated session. The adapter checks membership again before each write;
-do not expose a repository directly to an HTTP handler.
+- message ID
+- document ID
+- chunk ID와 ordinal
+- filename과 locator
+- knowledge release ID
 
-## Workflows and provider boundaries
+문서를 tombstone 처리하면 새 검색과 Citation 조회에서 제외되지만 과거 event와
+S3 version은 retention 정책에 따라 유지된다.
 
-`apps/batch/config/step-defs/agent.ts` declares three Step Functions workflows:
+## 피드백과 reviewed learning
 
-- document ingestion: claim index run, extract/chunk, vector upsert, complete;
-- feedback investigation: claim, collect evidence, evaluate, persist findings;
-- weekly evaluation: snapshot reviewed cases, evaluate, publish metrics.
+지원하는 피드백:
 
-The first two schedules are disabled because requests should start them with an
-opaque validated run ID. Weekly evaluation is scheduled only in production.
-All workflows are deployment definitions, not a deployment action.
+- `helpful`
+- `incorrect`
+- `missing`
+- `needs-investigation`
 
-`DocumentSourcePort`, `VectorIndexPort`, and `AgentWorkflowPort` keep S3,
-S3 Vectors, and Step Functions outside `@arlequins/agent-core`. A Bedrock
-adapter implements the existing `ModelProviderPort`; a local model or test
-double implements the same port. No AWS SDK is imported by the core package.
+`needs-investigation`은 조사 작업을 생성한다. 피드백과 조사는 자동으로 모델이나
+활성 지식을 바꾸지 않는다.
 
-## Local Ollama quick start
-
-The default local model is `qwen2.5:3b`, selected for a small first download,
-predictable non-reasoning responses, and reasonable Apple Silicon performance.
-Install it with:
-
-```bash
-ollama pull qwen2.5:3b
+```text
+feedback
+  -> evidence collection
+  -> reviewed evaluation case
+  -> retrieval evaluation
+  -> immutable snapshot + checksum manifest
+  -> conditional active-release switch
 ```
 
-Copy `.env.example` to `.env`; it sets `OLLAMA_BASE_URL` to the loopback-only
-address `http://127.0.0.1:11434` and `OLLAMA_MODEL=qwen2.5:3b`. The
-`@arlequins/agent-ollama` adapter rejects non-loopback endpoints, preventing a
-local configuration from silently sending conversation content to a remote
-server. Omit `OLLAMA_BASE_URL` to disable completion entirely.
+기본 release gate는 Citation recall `0.75`다.
 
-The signed-in starter UI has a workspace-scoped chat, a small text-document
-registration panel, memory-candidate capture, and helpful/investigation
-feedback actions. `POST /agent/stream` emits newline-delimited JSON (`delta`,
-then `complete`) while `agent.complete` is the compatible typed, non-streaming
-alternative. Both paths save the user question and assistant response through
-the same application service. Retrieved document chunks are saved as durable
-message citations before completion.
+## 동시 실행
 
-Text documents are chunked locally and searched with PostgreSQL case-insensitive
-term matching when the embedding model is unavailable. With
-`OLLAMA_EMBEDDING_MODEL=nomic-embed-text`, each new text or Markdown document is
-embedded locally through Ollama and cosine-ranked inside the authorized
-workspace. The vectors are stored alongside the relational chunk metadata, not
-in an unscoped browser cache. Pull it once with `ollama pull nomic-embed-text`.
-Memory starts as `candidate`; only an owner using `agent.reviewMemory` can mark
-it `approved`, and only approved, unexpired memories enter model context.
+사용자별 active-job lease로 채팅을 한 번에 하나만 처리한다. 두 번째 요청에는
+HTTP `409`, job ID와 예상 완료 시각을 반환한다. Lambda 중단으로 lease가 남아도
+만료 후 새 요청이 조건부로 회수할 수 있다.
 
-## Document operations
+문서 색인, 피드백 조사와 주기적 평가는 SQS FIFO에서 같은 사용자 message group
+안에 직렬화한다. worker는 at-least-once 실행을 전제로 멱등해야 한다.
 
-The starter UI lists workspace documents with their ingestion state, most recent
-index-request state, and a soft-delete action. Deletion sets `deletedAt`, so a
-deleted document immediately leaves retrieval results while existing audit
-records remain intact. `agent.startIndex` records a provider-neutral index run;
-the local text ingestion path completes synchronously, while a host application
-may route queued runs to the included Step Functions adapters. Assistant
-messages expose their durable document citations, including the source filename
-and a short chunk preview, only after the same workspace-membership check used
-for the conversation.
+## 비용 정책
 
-Text, Markdown, and HTML pass through a server-side extraction port before
-chunking. The built-in HTML extractor removes script and style content; PDF and
-DOCX must be connected through a host parser plus malware-scanning adapter,
-then follow the same queued index-run path. Do not extract binary office files
-in the browser.
-
-## Operations, retention, and roles
-
-`workspace_member.role` is enforced on every query. Members can use their
-workspace, while owners alone can add or change members, remove documents,
-approve/reject/delete memories, purge expired memories, and read the audit log.
-The UI exposes safe text/Markdown file selection (1MB maximum), document state,
-citation previews, memory review, and workspace usage counts. Keep larger or
-binary formats behind a server-side parser and malware scan rather than sending
-them to the browser text reader.
-
-Migration `0004_agent-local-rag-operations.sql` adds local chunk embeddings and
-an append-only `audit_log`. `agent.usage` returns bounded operational counts and
-`agent.auditLog` returns the most recent 100 non-content audit events. A host
-may schedule `agent.purgeExpiredMemories`; it is intentionally not automatic in
-this template so retention remains an explicit product decision.
-
-The **색인 요청** action is a safe local retry: it creates an auditable index run,
-re-embeds the document chunks, then records `completed` or a bounded `failed`
-error. Cloud index runs remain queued for the host application's workflow port.
-
-## Retrieval evaluation
-
-Owners can register a reviewed question with one or more expected chunk IDs and
-run a deterministic retrieval evaluation. Each result records citation recall
-(`expected chunks retrieved / expected chunks`) and the retrieved chunk IDs;
-it does not grade generated prose or silently alter knowledge. `evaluation_case`,
-`evaluation_run`, and `evaluation_result` are durable, workspace-scoped records.
-The weekly Step Functions definition can invoke this same boundary after a host
-selects approved cases.
-
-## Optional cloud adapters
-
-`@arlequins/agent-bedrock` and `@arlequins/agent-s3-vectors` are SDK-free ports:
-the deploying application injects its Bedrock Converse and S3 Vectors client.
-They add no cloud credentials, infrastructure, or provider imports to the local
-runtime. Wire them only after selecting a model, index, IAM role, budget, and
-data residency policy; the local Ollama/PostgreSQL path stays the default.
-
-Use a dedicated runtime role, never the CI deployment role. Start from
-[`iam/agent-runtime-policy.json`](./iam/agent-runtime-policy.json), replace all
-placeholders with one approved Bedrock model, source-object prefix, and vector
-index, then validate the resulting actions against CloudTrail in a sandbox. The
-policy intentionally contains no wildcard actions or resources. Do not attach
-write access to the source-document bucket to a retrieval-only runtime.
-
-Ollama values are not included in `LambdaEnvironment`, so this local default is
-unavailable after an AWS deployment unless a separate provider adapter is
-explicitly wired.
+- S3, Lambda와 SQS를 기본 서버리스 구성으로 사용한다.
+- RDS, Aurora, NAT Gateway, ECS와 항상 실행되는 서비스를 만들지 않는다.
+- Bedrock은 모델 ID와 정확한 IAM ARN을 제공할 때만 활성화한다.
+- S3 Vectors와 별도 백업·복제는 데이터량과 복구 목표가 필요해질 때 opt-in한다.
+- Budget과 Cost Anomaly alert는 모델 사용 전에 설정한다.

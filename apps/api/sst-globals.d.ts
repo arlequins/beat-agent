@@ -88,8 +88,52 @@ declare const sst: {
 };
 
 declare const aws: {
+  iam: {
+    getPolicyDocumentOutput: (args: Record<string, unknown>) => {
+      json: string;
+    };
+  };
+  s3: {
+    BucketV2: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => { arn: string; bucket: string; id: string };
+    BucketLifecycleConfigurationV2: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => unknown;
+    BucketOwnershipControls: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => unknown;
+    BucketPolicy: new (name: string, args: Record<string, unknown>) => unknown;
+    BucketPublicAccessBlock: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => unknown;
+    BucketServerSideEncryptionConfigurationV2: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => unknown;
+    BucketVersioningV2: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => unknown;
+  };
+  sqs: {
+    Queue: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => { arn: string; url: string };
+  };
   cloudwatch: {
     MetricAlarm: new (name: string, args: Record<string, unknown>) => unknown;
     Dashboard: new (name: string, args: Record<string, unknown>) => unknown;
   };
 };
+
+declare const $interpolate: (
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+) => string;
+declare const $jsonStringify: (value: unknown) => string;

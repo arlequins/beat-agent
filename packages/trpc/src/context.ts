@@ -7,14 +7,12 @@ import type {
 } from "@arlequins/agent-core";
 import type { AuthSession, TRPCAuth } from "@arlequins/auth";
 import type { Logger, Telemetry } from "@arlequins/logger";
-import type { ContentService, FileUploadService } from "@arlequins/service";
-import type { createAgentPlatformRepository } from "./adaptors/agent-platform";
+import type { S3AgentPlatformRepository } from "./adaptors/agent-platform-s3";
 
 export type TRPCServices = {
-  content: ContentService;
-  fileUpload?: FileUploadService;
-  agent: ReturnType<typeof createAgentPlatformRepository>;
+  agent: S3AgentPlatformRepository;
   model?: ModelProviderPort;
+  modelId?: string;
   embedding?: EmbeddingProviderPort;
   documentExtraction: DocumentExtractionPort;
   knowledgeSearch: KnowledgeSearchPort;

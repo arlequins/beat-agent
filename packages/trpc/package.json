@@ -28,6 +28,7 @@
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
+    "@arlequins/agent-bedrock": "workspace:*",
     "@arlequins/agent-core": "workspace:*",
     "@arlequins/agent-ollama": "workspace:*",
     "@arlequins/auth": "workspace:*",
@@ -37,6 +38,7 @@
     "@arlequins/s3-cache": "workspace:*",
     "@arlequins/service": "workspace:*",
     "@arlequins/validators": "workspace:*",
+    "@aws-sdk/client-bedrock-runtime": "catalog:",
     "@aws-sdk/client-s3": "catalog:",
     "@aws-sdk/s3-request-presigner": "catalog:",
     "@trpc/server": "catalog:",

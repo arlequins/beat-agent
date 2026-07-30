@@ -29,17 +29,31 @@ function createServices(input?: {
         : input.assistantMessage,
     );
   const addMessageCitations = vi.fn().mockResolvedValue(undefined);
+  const releaseJob = vi.fn().mockResolvedValue(undefined);
   const streamText = vi.fn(async function* () {
     for (const chunk of input?.chunks ?? ["답", "변"]) yield chunk;
   });
   const services = {
     agent: {
+      acquireJob: vi.fn().mockResolvedValue({
+        estimatedCompletionAt: "2026-07-30T00:02:00.000Z",
+        etag: '"lease"',
+        jobId: "job-1",
+        leaseExpiresAt: "2026-07-30T00:05:00.000Z",
+        startedAt: "2026-07-30T00:00:00.000Z",
+        status: "running",
+        userId: "user-1",
+      }),
+      activeRelease: vi.fn().mockResolvedValue({
+        releaseId: "release-1",
+      }),
       addMessage,
       addMessageCitations,
       listMessages: vi.fn().mockResolvedValue([
         { content: "이전 질문", id: "previous", role: "user" },
         { content: "질문", id: "message-user", role: "user" },
       ]),
+      releaseJob,
     },
     knowledgeSearch: {
       search: vi.fn().mockResolvedValue(
@@ -59,7 +73,7 @@ function createServices(input?: {
     },
     model: input?.model === false ? undefined : { streamText },
   } as unknown as TRPCServices;
-  return { addMessage, addMessageCitations, services, streamText };
+  return { addMessage, addMessageCitations, releaseJob, services, streamText };
 }
 
 async function collect(
@@ -112,7 +126,11 @@ describe("streamAgentCompletion", () => {
     );
     expect(addMessageCitations).toHaveBeenCalledWith(
       { userId: "user-1", workspaceId: "workspace-1" },
-      { chunkIds: ["chunk-1"], messageId: "message-assistant" },
+      {
+        chunkIds: ["chunk-1"],
+        knowledgeReleaseId: "release-1",
+        messageId: "message-assistant",
+      },
     );
     expect(streamText).toHaveBeenCalledWith({
       messages: expect.arrayContaining([
@@ -130,7 +148,7 @@ describe("streamAgentCompletion", () => {
     const { addMessage, services } = createServices({ model: false });
 
     await expect(collect(services)).rejects.toThrow(
-      "Local model completion is not configured",
+      "Model completion is not configured",
     );
     expect(addMessage).not.toHaveBeenCalled();
   });
@@ -138,9 +156,7 @@ describe("streamAgentCompletion", () => {
   it("rejects empty model output instead of storing an empty answer", async () => {
     const { addMessage, services } = createServices({ chunks: [" ", "\n"] });
 
-    await expect(collect(services)).rejects.toThrow(
-      "Local model returned no text",
-    );
+    await expect(collect(services)).rejects.toThrow("Model returned no text");
     expect(addMessage).toHaveBeenCalledOnce();
   });
 

@@ -1,19 +1,36 @@
 # Beat
 
-Beat은 Arlequin이 맥에서 로컬로 실행하는 개인 비서입니다. 대화 이력,
-검토된 기억, 개인 문서를 바탕으로 답하며, 문서 근거는 인용으로 확인할 수
-있습니다. 반성적 대화는 지원하지만 의료·정신건강 진단이나 위기 대응 서비스를
-대체하지 않습니다.
+Beat은 Arlequin을 위한 개인 비서입니다. 대화와 상담 기록, 검토된 장기 기억,
+개인 문서를 바탕으로 한국어로 답하고 문서 근거를 인용합니다. 의료·정신건강
+진단이나 전문 치료를 대체하지 않습니다.
 
-현재 v0.3.0 `template-agent` 기반의 첫 번째 제품화 단계입니다. 로컬 기본값은
-PostgreSQL, OIDC mock, Ollama이며 클라우드 배포는 실행하지 않습니다.
+`template-agent` v0.3.0에서 제품화했지만 저장 구조는 의도적으로 다릅니다.
+템플릿의 PostgreSQL 구현은 원본 저장소에 유지하고, Beat은 S3를 주 저장소로
+사용합니다.
 
-블로그 `arlequins/beat`에는 Beat 위젯을 별도 PR로 연결합니다. 인증된 사용자의
-대화는 이 저장소의 API만 사용하며, 블로그 페이지 본문은 명시적으로 등록하거나
-공개 문서로 승인된 경우에만 검색 근거로 사용합니다. 자세한 경계는
-[Beat 제품 방향](./docs/beat-product.md)을 참고하세요.
+## 핵심 구조
 
-## 로컬에서 시작하기
+- 기존 Beat OIDC의 Authorization Code + PKCE 로그인을 사용합니다.
+- OIDC `(issuer, subject)`에서 충돌하지 않는 내부 UUID를 결정적으로 생성합니다.
+- 대화, 기억, 문서, Citation, 피드백과 평가는 S3에 저장합니다.
+- 변경할 수 있는 읽기 모델은 ETag 조건부 쓰기로 갱신합니다.
+- 모든 변경은 별도의 append-only 이벤트로도 기록합니다.
+- 삭제는 기본적으로 tombstone이며 런타임이 과거 버전을 지우지 않습니다.
+- 승인된 기억과 문서는 평가를 통과한 버전별 릴리스로만 활성화됩니다.
+- Citation은 답변 당시의 `knowledgeReleaseId`를 보존합니다.
+- 같은 사용자의 두 번째 채팅 요청은 `409 Agent Busy`와 예상 완료 시각을
+  반환합니다.
+
+자세한 설계와 복구 절차는
+[S3-primary 아키텍처](./docs/s3-primary-architecture.md)를 참고하세요.
+
+## 로컬 실행
+
+필요한 도구:
+
+- `package.json`에 지정된 Node.js와 pnpm
+- Docker
+- 네이티브 Ollama 또는 Docker Ollama
 
 ```bash
 pnpm install
@@ -23,224 +40,90 @@ ollama pull nomic-embed-text
 pnpm dev:local
 ```
 
-`http://localhost:3000`에서 **Beat 시작하기**를 선택하고, 로컬 OIDC 화면에서
-임의의 사용자 이름과 비밀번호로 로그인하세요. 첫 워크스페이스와 대화를 만든
-뒤 바로 질문할 수 있습니다.
+`pnpm dev:local`은 로컬 S3 호환 저장소인 MinIO를 시작하고 Beat OIDC mock,
+API와 웹을 실행합니다.
 
----
+- Web: `http://localhost:3000`
+- API: `http://localhost:5000`
+- Readiness: `http://localhost:5000/health/ready`
+- MinIO console: `http://localhost:59001`
 
-A provider-neutral conversational AI-agent template built on
-`template-t3-turbo-sst`. It starts locally with PostgreSQL and the included OIDC
-mock, then adds AWS services only when a feature needs them.
+웹에서 **Beat 시작하기**를 누르고 OIDC mock에 임의의 사용자 이름과 비밀번호를
+입력합니다. 첫 워크스페이스와 대화를 만든 뒤 질문할 수 있습니다.
 
-## Cost-aware defaults
+로컬 Ollama는 loopback 주소만 허용합니다. 임베딩 모델을 사용할 수 없으면
+워크스페이스 범위의 키워드 검색으로 안전하게 대체됩니다.
 
-- Local PostgreSQL and a local model are the default development path.
-- Aurora PostgreSQL is an optional SST application and is disabled by default.
-- Do not create a NAT Gateway, always-on container, or production database in a
-  personal sandbox without an explicit decision.
-- Treat Amazon Bedrock inference as usage-priced, even when the surrounding AWS
-  infrastructure is within a free-tier allowance.
+## AWS 프로덕션
 
-See [Optional Aurora PostgreSQL with SST](./docs/aurora-sst.md).
+API SST 스택은 다음을 생성합니다.
 
-**v1.0.1** - A reusable pnpm monorepo template for a client-only Next.js
-frontend, Hono and tRPC API, Drizzle PostgreSQL persistence, OIDC authentication,
-and optional SST batch and deployment infrastructure.
+- 버전 관리와 공개 차단이 적용된 private S3 데이터 버킷
+- TLS 및 조건부 쓰기를 강제하는 버킷 정책
+- 오래된 읽기 모델 버전 비용을 제한하는 Lifecycle
+- 장기 작업을 직렬화할 SQS FIFO와 DLQ
+- S3 prefix와 선택된 Bedrock 모델에 한정된 Lambda 권한
+- 오류, 지연시간, 요청량 대시보드와 알람
 
-## Stack
+Bedrock은 명시적 opt-in입니다. 활성화하려면 정확한 모델 ID와 런타임에 허용할
+ARN을 함께 지정합니다.
 
-| Area | Technology |
-| --- | --- |
-| Workspace | pnpm catalogs, Turborepo, TypeScript, Biome |
-| Web | Next.js App Router, client-only static export, React, Tailwind CSS |
-| API | Hono, tRPC, local Node.js server, AWS Lambda deployment |
-| Database | PostgreSQL, Drizzle ORM, migrations, and idempotent seeds |
-| Authentication | OpenID Connect Authorization Code with PKCE and JWT validation |
-| Infrastructure | SST Ion, CloudFront, Lambda, Step Functions, EventBridge |
-| Testing | Vitest, PostgreSQL integration tests, Playwright, accessibility checks |
-
-Internal packages use the placeholder scope `@arlequins/*`. The initializer replaces
-it when creating a project.
-
-## Requirements
-
-- Node.js and pnpm versions matching [`package.json`](./package.json)
-- Docker for local PostgreSQL and end-to-end tests
-- AWS credentials only for cloud-backed SST commands
-
-Use the Node.js version in [`.nvmrc`](./.nvmrc). The preinstall check reports an
-actionable error when the runtime does not match.
-
-## Create a Project
-
-Preview repository-wide replacements before applying them:
-
-```bash
-pnpm template:init -- --name customer-portal --display-name "Customer Portal" --scope @company --domain customer.example.org --dry-run
-pnpm template:init -- --name customer-portal --display-name "Customer Portal" --scope @company --domain customer.example.org --description "Customer portal"
-pnpm install
+```dotenv
+BEDROCK_MODEL_ID=replace-with-approved-model-id
+BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-1::foundation-model/replace-me
 ```
 
-The initializer updates package names, SST application names, repository
-metadata, and example domains. It refuses to modify a dirty worktree unless
-`--force` is provided.
+모델을 지정하지 않으면 AWS 배포에서 모델 호출 권한도 생성하지 않습니다.
+Aurora, RDS, NAT Gateway, ECS와 상시 실행 컨테이너는 필요하지 않습니다.
 
-`--display-name` controls user-facing branding and defaults to a title-cased
-version of `--name`. The generated `template.features.json` records the project
-identity, selected preset, and enabled optional features for later tooling.
+## 데이터 릴리스
 
-The default preset retains the complete template. For a smaller starting point:
+새 기억이나 문서를 승인해도 활성 릴리스에는 즉시 섞이지 않습니다.
 
-```bash
-pnpm template:init -- --name customer-portal --scope @company --domain customer.example.org --preset minimal --prune
-pnpm install
-```
+1. 원본 이벤트와 후보 데이터를 축적합니다.
+2. 승인된 평가 사례로 Retrieval 평가를 실행합니다.
+3. Citation recall이 기본 기준 `0.75` 이상인지 확인합니다.
+4. `agent.publishRelease`로 불변 snapshot과 checksum manifest를 생성합니다.
+5. 모든 객체 생성이 성공한 뒤 `active-release.json`을 조건부 교체합니다.
 
-The minimal preset keeps `web + api + trpc + db`. Use `--features` to select
-`auth`, `batch`, `sst`, or `example-ui`. `--prune` physically removes omitted
-modules and the lockfile; the next install creates a lockfile for the selected
-composition.
+활성화가 끝나기 전까지 질문은 이전 릴리스를 계속 사용합니다. 새 릴리스 이후
+과거 답변의 Citation도 당시 릴리스 ID를 유지합니다.
 
-## Local Quickstart
-
-Start PostgreSQL, apply migrations and seeds, and launch the local OIDC provider,
-API, and web app:
+## 검증
 
 ```bash
-pnpm install
-pnpm agent:setup
-ollama pull qwen2.5:3b
-ollama pull nomic-embed-text
-pnpm agent:demo:check
-pnpm dev:local
-```
-
-Open `http://localhost:3000`. The development identity provider accepts any
-non-empty username and password. After signing in, create a workspace, start a
-conversation, optionally register text knowledge, then send a question. The
-default local model is `qwen2.5:3b`; run `ollama serve` if the Ollama service is
-not already running. `nomic-embed-text` enables semantic document retrieval;
-when it is unavailable, the application safely falls back to keyword search.
-Alternatively run `docker compose --profile ollama up -d ollama` (native Ollama
-is generally faster on Apple Silicon). PostgreSQL uses host port `55433` by default. Stop the
-database with `pnpm db:stop`.
-
-The API endpoints are:
-
-- Liveness: `http://localhost:5000/health/live`
-- PostgreSQL-backed readiness: `http://localhost:5000/health/ready`
-- Interactive API explorer: `http://localhost:5000/docs`
-- OpenAPI document: `http://localhost:5000/openapi.json`
-- tRPC: `http://localhost:5000/api/trpc`
-
-See [Application Architecture](./docs/architecture.md) for request flow and
-workspace boundaries, and [OpenID Connect Authentication](./docs/authentication.md)
-for provider configuration.
-
-## Common Commands
-
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev:local` | Start the complete local application stack. |
-| `pnpm agent:setup` | Create `.env.localhost` without overwriting an existing local configuration. |
-| `pnpm agent:demo:check` | Verify the local Ollama chat and embedding models without downloading them. |
-| `pnpm dev` | Run development tasks when dependencies are already available. |
-| `pnpm dev:sst` | Run web, API, and batch through cloud-backed SST development. |
-| `pnpm check` / `pnpm check:fix` | Check or fix Biome formatting and lint rules. |
-| `pnpm typecheck` | Typecheck every workspace. |
-| `pnpm test` | Run unit and contract tests. |
-| `pnpm test:coverage` | Run unit tests and enforce the 75% aggregate coverage gate. |
-| `pnpm test:e2e` | Run isolated PostgreSQL and browser end-to-end tests. |
-| `pnpm db:setup` | Apply committed migrations and pending seeds. |
-| `pnpm turbo gen` | Generate an application, package, or tRPC domain. |
-| `pnpm gen:feature` | Generate a clean-architecture command or query slice. |
-
-Database schema changes use:
-
-```bash
-pnpm db:create-migration --name=describe_change
-pnpm db:check
-```
-
-See [`packages/db-backbone/README.md`](./packages/db-backbone/README.md) for the
-migration workflow and [Database Operations](./docs/database-operations.md) for
-backup, restore, and deployment ordering.
-
-## Environment and Secrets
-
-- `.env.localhost.example` is the complete local-stack configuration.
-- `.env.example` documents shared and cloud-oriented variables.
-- `pnpm env:check` verifies environment schemas and examples stay synchronized.
-- `pnpm env:pull` and `pnpm env:push` synchronize supported values with AWS
-  Secrets Manager.
-
-Application code should access validated environment values through `@arlequins/env`
-instead of reading `process.env` throughout the codebase.
-
-## Local RAG and workspace operations
-
-The local agent accepts `.txt` and `.md` documents up to 1MB. It chunks them,
-creates local Ollama embeddings when `nomic-embed-text` is available, and stores
-citations with every assistant response. If that optional embedding model is
-offline, safe workspace-scoped keyword retrieval remains available.
-
-Workspace owners manage members, document deletion, memory review, retention,
-and the audit trail. Members can only act within workspaces where they have a
-membership. See [Agent Platform](./docs/agent-platform.md) for the data model,
-retention boundary, Docker Ollama profile, and optional cloud adapters.
-
-For a complete click-through local verification, see [Local agent demo](./docs/local-agent-demo.md).
-
-## Template Qualification
-
-Validate SST configuration without SST sign-in or AWS credentials:
-
-```bash
-cp .env.example .env
+pnpm check
+pnpm typecheck
+pnpm test
+pnpm test:coverage
 pnpm test:sst
+pnpm test:e2e
 ```
 
-Validate complete generated repositories:
+Playwright E2E는 격리된 MinIO 버킷, OIDC mock, API와 웹을 실행하고 종료할 때
+테스트 볼륨을 제거합니다.
 
-```bash
-pnpm test:template-output full
-pnpm test:template-output minimal
-```
+## 주요 명령
 
-These checks do not emulate AWS. Cloud deployment, preview stages, and sandbox
-smoke tests still require AWS credentials. See [SST Local Testing](./docs/sst-local-testing.md)
-and [Template Readiness](./docs/template-readiness.md).
+| 명령 | 용도 |
+| --- | --- |
+| `pnpm dev:local` | MinIO, OIDC mock, API와 웹 실행 |
+| `pnpm storage:start` | 로컬 MinIO와 Beat 버킷 준비 |
+| `pnpm storage:stop` | 로컬 서비스 중지, 볼륨 보존 |
+| `pnpm agent:demo:check` | Ollama chat/embedding 모델 확인 |
+| `pnpm test:coverage` | 75% 전체 커버리지 기준 검증 |
+| `pnpm test:e2e` | 실제 브라우저와 격리된 S3 호환 저장소 검증 |
 
-## Deployment
+## 보안 경계
 
-- Web builds as a static export for S3 and CloudFront.
-- API deploys through a Lambda Function URL or API Gateway HTTP API preset.
-- Batch workflows use Step Functions, Lambda, and EventBridge schedules.
+- 브라우저는 S3 자격 증명을 받지 않습니다.
+- API는 OIDC access token을 검증한 뒤 워크스페이스 멤버십을 다시 확인합니다.
+- S3 객체 키에는 원본 OIDC subject나 이메일을 넣지 않습니다.
+- 상담과 문서 본문을 애플리케이션 로그에 기록하지 않습니다.
+- 배포 역할과 Lambda 런타임 역할은 분리합니다.
+- 전체 상담 버킷에는 Object Lock을 기본 적용하지 않습니다. 삭제 대응이 필요한
+  민감정보와 WORM 보존 요구가 충돌할 수 있기 때문입니다.
+- 감사·릴리스 manifest의 별도 Governance Object Lock은 후속 opt-in으로 둡니다.
 
-Read [Deployment and Supply-Chain Security](./docs/deployment-security.md) before
-configuring GitHub OIDC roles or production environments. Deployment-specific
-commands and tradeoffs live in [`apps/api/README.md`](./apps/api/README.md) and
-[`apps/batch/README.md`](./apps/batch/README.md).
-The complete workflow map and required GitHub Environment variables and secrets are documented in
-[CI/CD Operations](./docs/ci-cd.md).
-
-## Documentation
-
-Use the [documentation index](./docs/README.md) to find architecture,
-development, operations, security, and engineering conventions. Package-level
-details live beside their implementation under `apps/*/README.md` and
-`packages/*/README.md`.
-
-## Publishing a Fork
-
-1. Run `pnpm template:init` and prune unused modules.
-2. Replace example identity, domain, seed, and IAM values.
-3. Configure branch protection, deployment environments, and cloud roles.
-4. Update `LICENSE`, `NOTICE`, ownership, support, and incident contacts.
-5. Run local, generated-template, and relevant cloud qualification checks.
-
-## Changelog and License
-
-See [CHANGELOG.md](./CHANGELOG.md). The project is available under the
-[MIT License](./LICENSE), with upstream attribution in [NOTICE](./NOTICE).
+GitHub Actions 배포 순서와 필요한 Environment secret은
+[CI/CD 운영](./docs/ci-cd.md)을 참고하세요.

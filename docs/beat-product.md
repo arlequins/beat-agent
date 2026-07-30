@@ -17,7 +17,11 @@ Beat은 Arlequin 한 사람을 위한 개인 비서다. 맥과 설치 가능한 
   문맥에 검색해 사용한다.
 - 문서 기반 답변은 저장된 청크와 파일명을 인용한다.
 - 피드백과 학습 후보는 불변 기록으로 축적하고, 평가를 통과한 릴리스만 활성화한다.
-- 기본 로컬 실행 경로는 Docker PostgreSQL, Beat OIDC, loopback Ollama다.
+- 프로덕션 인증은 기존 Beat OIDC를 사용하고 별도의 비밀번호·refresh token
+  데이터베이스를 운영하지 않는다.
+- 기본 로컬 실행 경로는 Docker MinIO, OIDC mock, loopback Ollama다.
+- 프로덕션 source of truth는 versioned S3이며 PostgreSQL과 Aurora를 요구하지
+  않는다.
 
 ## 모바일 PWA
 

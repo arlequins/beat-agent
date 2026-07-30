@@ -324,7 +324,12 @@ export function AgentChat() {
         },
       );
       if (!response.ok || !response.body) {
-        throw new Error("응답 스트림을 시작하지 못했습니다.");
+        const failure = (await response.json().catch(() => undefined)) as
+          | { message?: string }
+          | undefined;
+        throw new Error(
+          failure?.message ?? "응답 스트림을 시작하지 못했습니다.",
+        );
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -659,7 +664,7 @@ export function AgentChat() {
           />
           <div className="mt-3 flex items-center justify-between gap-3">
             <p className="text-muted-foreground text-xs">
-              응답은 현재 로컬 Ollama에서 생성됩니다.
+              응답은 현재 구성된 Beat 모델에서 생성됩니다.
             </p>
             <Button
               disabled={!question.trim() || !conversationId || isStreaming}

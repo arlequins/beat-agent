@@ -39,12 +39,6 @@ export { parseAwsIdList, vpcFromEnv, vpcIdFromEnv } from "./vpc.js";
 
 export const LambdaEnvironment = {
   NODE_ENV: "production",
-  DATABASE_HOST: serverEnv.DATABASE_HOST!,
-  DATABASE_PORT: serverEnv.DATABASE_PORT!,
-  DATABASE_USER: serverEnv.DATABASE_USER!,
-  DATABASE_PASSWORD: serverEnv.DATABASE_PASSWORD!,
-  DATABASE_NAME: serverEnv.DATABASE_NAME!,
-  DATABASE_SSL_MODE: serverEnv.DATABASE_SSL_MODE ?? "require",
   OIDC_ISSUER_URL: serverEnv.OIDC_ISSUER_URL!,
   OIDC_AUDIENCE: serverEnv.OIDC_AUDIENCE!,
   ...(serverEnv.OIDC_JWKS_URI
@@ -100,5 +94,17 @@ export const LambdaEnvironment = {
     : {}),
   ...(serverEnv.S3_UPLOAD_PREFIX
     ? { S3_UPLOAD_PREFIX: serverEnv.S3_UPLOAD_PREFIX }
+    : {}),
+  ...(serverEnv.S3_AGENT_BUCKET
+    ? { S3_AGENT_BUCKET: serverEnv.S3_AGENT_BUCKET }
+    : {}),
+  ...(serverEnv.S3_AGENT_PREFIX
+    ? { S3_AGENT_PREFIX: serverEnv.S3_AGENT_PREFIX }
+    : {}),
+  ...(serverEnv.BEDROCK_MODEL_ID
+    ? { BEDROCK_MODEL_ID: serverEnv.BEDROCK_MODEL_ID }
+    : {}),
+  ...(serverEnv.BEDROCK_MODEL_ARN
+    ? { BEDROCK_MODEL_ARN: serverEnv.BEDROCK_MODEL_ARN }
     : {}),
 };

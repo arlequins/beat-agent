@@ -20,15 +20,8 @@ function run(command, args, env = process.env) {
 }
 
 try {
-  run("docker", [...composeArgs, "up", "-d", "--wait"]);
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:migrate"]);
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:seed"], {
-    ...process.env,
-    SEED_SAMPLE_DATA: "false",
-    SST_STAGE: "production",
-  });
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:seed"]);
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:seed"]);
+  run("docker", [...composeArgs, "up", "-d", "--wait", "minio-e2e"]);
+  run("docker", [...composeArgs, "run", "--rm", "minio-init"]);
   run("pnpm", ["exec", "playwright", "test", ...process.argv.slice(2)]);
 } finally {
   run("docker", [...composeArgs, "down", "--volumes"]);

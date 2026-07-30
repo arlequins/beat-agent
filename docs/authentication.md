@@ -1,139 +1,97 @@
-# OpenID Connect Authentication
+# Beat OIDC Authentication
 
-The template uses OpenID Connect for user authentication and OAuth 2.0 bearer access tokens for API authorization.
+Beat은 별도의 운영용 아이디·비밀번호 저장소를 만들지 않고 기존 Beat 프로젝트의
+OIDC provider를 사용한다.
 
 ```text
-Browser (public client)
-  -> Authorization Code + PKCE
-  -> OIDC provider
+Browser / installed PWA
+  -> Authorization Code + PKCE S256
+  -> Beat OIDC provider
   -> JWT access token
-  -> Hono / tRPC API
-  -> discovery + JWKS signature and claim validation
+  -> Beat Agent API
+  -> discovery + JWKS + issuer/audience validation
 ```
 
-The browser implementation uses [`oidc-client-ts`](https://authts.github.io/oidc-client-ts/) and does not use a client secret. The API uses [`jose`](https://github.com/panva/jose) to verify JWT signatures and claims.
+브라우저는 public client이며 client secret을 갖지 않는다. API는 access token의
+서명, issuer, audience, 만료, 허용 알고리즘과 `sub`를 검증한다.
 
-## Beat-Owned Production Provider
+## 사용자 식별
 
-Production Beat does not require an external identity-provider account. Set
-`INTERNAL_OIDC_ENABLED=true` on the API deployment and configure the initial
-administrator email/password plus one ES256 private JWK. The API then exposes
-its own discovery document, JWKS, authorization endpoint, token endpoint, and
-revocation endpoint beneath `/oidc`.
+서로 다른 issuer가 같은 `sub`를 발급할 수 있으므로 `sub`만 데이터 키로 쓰지
+않는다. API는 검증된 다음 값을 SHA-256 기반 UUID로 변환한다.
 
-The browser is a public client and accepts only the exact HTTPS callback URL
-`${NEXT_PUBLIC_SITE_URL}/auth/callback/`. Authorization Code with PKCE S256 is
-required. Access tokens last ten minutes; refresh tokens are opaque, hashed in
-PostgreSQL, rotate on every use, and expire after the configured 1–90 day
-period. Reusing a rotated refresh token revokes all active refresh tokens for
-that administrator and writes a security audit event.
+```text
+issuer + "|" + subject -> derived user UUID
+```
 
-The initial password is used only to provision the first local identity. Keep
-it, the signing JWK, and database credentials in Vercel encrypted environment
-variables; never expose them as `NEXT_PUBLIC_*` variables.
+원본 subject, 이메일과 이름은 S3 object key에 포함하지 않는다. 관리자 bootstrap
+목록도 동일한 `issuer|subject` 형태다.
 
-## Provider Registration
+## Provider 등록
 
-Register a public SPA client with Authorization Code and PKCE enabled. Do not issue a client secret to the browser application.
+기존 Beat OIDC에 Authorization Code와 PKCE를 사용하는 SPA client를 등록한다.
 
-For local development, allow these exact redirect URIs:
+로컬 redirect URI:
 
 ```text
 http://localhost:3000/auth/callback/
 http://localhost:3000/auth/logout-callback/
 ```
 
-Register equivalent HTTPS URIs for each deployed environment. The provider must expose an [OpenID Provider Configuration document](https://openid.net/specs/openid-connect-discovery-1_0.html) and issue signed JWT access tokens for the configured API audience.
-
-## Environment
+운영 환경에는 실제 HTTPS 도메인의 동일 경로만 등록한다. wildcard callback은
+허용하지 않는다.
 
 ```dotenv
-# API resource server
-OIDC_ISSUER_URL=https://idp.beat.localhost
-OIDC_AUDIENCE=example-api
+OIDC_ISSUER_URL=https://id.beat.example
+OIDC_AUDIENCE=https://api.agent.beat.example
 OIDC_ALLOWED_ALGORITHMS=RS256
-# OIDC_JWKS_URI=https://idp.beat.localhost/.well-known/jwks.json
+AUTH_BOOTSTRAP_ADMIN_IDENTITIES=https://id.beat.example|approved-subject
 
-# Static browser client
-NEXT_PUBLIC_OIDC_AUTHORITY=https://idp.beat.localhost
-NEXT_PUBLIC_OIDC_CLIENT_ID=example-spa
-NEXT_PUBLIC_OIDC_RESOURCE=https://api.beat.localhost
-NEXT_PUBLIC_OIDC_SCOPE=openid profile email
+NEXT_PUBLIC_OIDC_AUTHORITY=https://id.beat.example
+NEXT_PUBLIC_OIDC_CLIENT_ID=beat-agent-web
+NEXT_PUBLIC_OIDC_RESOURCE=https://api.agent.beat.example
+NEXT_PUBLIC_OIDC_SCOPE=openid profile email offline_access
 ```
 
-`OIDC_AUDIENCE` and `OIDC_ALLOWED_ALGORITHMS` accept comma-separated values. The JWKS URI is discovered from the provider by default; set `OIDC_JWKS_URI` only when an explicit override is required.
+JWKS URI는 discovery 문서에서 찾는다. provider가 표준 discovery를 제공하지
+않을 때만 `OIDC_JWKS_URI`를 명시한다.
 
-`NEXT_PUBLIC_OIDC_RESOURCE` is optional. Set it when the provider uses OAuth 2.0 Resource Indicators to select the API audience.
+## 브라우저 세션
 
-## Local Provider
+사용자가 승인한 현재 제품 정책에 따라 OIDC user와 token은 `localStorage`에
+보관한다. 설치된 PWA도 같은 세션을 사용한다.
 
-`pnpm dev:local` starts the development-only `@arlequins/oidc-mock` provider with PostgreSQL, the API, and the web app. It uses in-memory accounts and signing keys and must never be deployed as a production identity provider.
+이 선택은 XSS가 token 탈취로 이어질 수 있음을 의미한다.
 
-The complete local configuration is in `.env.localhost.example`. The Playwright suite uses `.env.e2e` and an isolated database to verify PKCE sign-in, JWT validation through discovery and JWKS, protected tRPC CRUD, and sign-out.
+- CSP를 유지한다.
+- untrusted HTML을 직접 렌더링하지 않는다.
+- 인증 callback, API 응답, 대화와 상담 내용을 service worker에 캐시하지 않는다.
+- token과 authorization header를 로그에 기록하지 않는다.
+- XSS 사고가 의심되면 Beat OIDC에서 해당 사용자의 session을 폐기한다.
 
-The API accepts only asymmetric signing algorithms: RS256/384/512, PS256/384/512, ES256/384/512, and EdDSA. Keep the allowlist as narrow as the provider permits.
+refresh token의 회전, 재사용 탐지와 모든 기기 로그아웃은 Beat OIDC provider가
+소유한다. Beat Agent는 refresh token 데이터베이스나 비밀번호 endpoint를
+제공하지 않는다.
 
-## Validation
+## 로컬과 E2E
 
-For every bearer token, the API validates:
+`pnpm dev:local`은 개발 전용 `@arlequins/oidc-mock`을 실행한다. 임의의 사용자
+이름과 비밀번호를 받지만 모든 계정과 signing key는 메모리에만 존재한다.
+프로덕션에는 이 provider를 배포하지 않는다.
 
-- compact JWT structure and cryptographic signature;
-- configured signing algorithm;
-- exact issuer;
-- API audience;
-- expiration and time-based claims, with five seconds of clock tolerance;
-- required `sub` claim.
+Playwright는 MinIO, OIDC mock, API와 웹을 함께 실행해 다음을 검증한다.
 
-Missing, expired, malformed, incorrectly signed, or incorrectly scoped tokens produce an unauthenticated session. Discovery and JWKS availability errors are not treated as bad credentials and surface as service errors.
+- PKCE 로그인과 JWT 검증
+- browser/PWA 재시작 후 세션 유지
+- 보호된 workspace API
+- 로그아웃
+- S3-primary readiness
 
-## Browser Session
+## 권한
 
-The browser stores the OIDC user, access token, refresh token, and interaction
-state in `localStorage` so a Beat administrator remains signed in after a
-browser restart. No session cookie is used. The tRPC client reads the current
-non-expired access token immediately before each HTTP batch request.
-
-Automatic renewal uses the rotating refresh token. The administrator security
-center shows the active persistent-login count and can revoke all of them.
-Because localStorage is readable by same-origin JavaScript, production must
-retain the Vercel CSP in `apps/web/vercel.json`, never render untrusted HTML,
-and treat XSS findings as token-exposure incidents. Use the security center to
-sign out all devices after a suspected compromise.
-
-The installed Beat PWA uses this same OIDC client and browser-storage contract.
-Its service worker caches only the public application shell and immutable static
-assets. It must not cache authentication callbacks, administrator pages, API
-responses, conversations, or counseling content. A newly installed standalone
-PWA can require one initial sign-in before its persistent session is available.
-
-## Login Abuse Protection and Validation
-
-`POST /oidc/authorize` has a fixed-window limit by both forwarded client IP and
-a SHA-256 hash of the submitted email. The production defaults are five attempts
-per fifteen minutes; configure `OIDC_LOGIN_RATE_LIMIT_REQUESTS` and
-`OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS` only when an operational review calls
-for a different policy. Login success/failure, rate limiting, refresh-token
-reuse, and administrator-driven revocation are structured API audit events and
-never include raw credentials or tokens.
-
-Before a production release, run the browser acceptance flow against a
-production-like PostgreSQL database: sign in, close/reopen the browser, let the
-access token renew, revoke all persistent logins from `/admin/`, and confirm
-the next request requires a fresh sign-in. Also attempt a second use of the
-same refresh token and confirm it returns `invalid_grant` and ends all active
-persistent logins.
-
-## Application Usage
-
-- Use `publicProcedure` for endpoints that do not require identity.
-- Use `protectedProcedure` for endpoints that require a validated access token.
-- Read the stable user ID from `ctx.session.user.id`, which maps to the OIDC `sub` claim.
-- Read provider-specific authorization claims from `ctx.session.claims` only through a documented authorization policy.
-- Never send an ID token to the API as an access token.
-## Application Users and Authorization
-
-After token verification, the API provisions an application user by the stable `(issuer, subject)` pair. Profile claims are synchronized on login, while authorization roles remain application-owned in `auth.user_role`. New users receive the `member` role. Never grant roles directly from untrusted token claims unless a project adds an explicit, provider-specific mapping policy.
-
-Use `permissionProcedure(Permission.X)` for protected tRPC operations. The default policy provides `viewer`, `member`, and `admin` roles through a dependency-injected provisioning port. Authentication success and authorization denial are emitted as structured audit events without tokens.
-
-For multiple identity providers, set `OIDC_PROVIDERS_JSON` to a JSON array of named configurations. The unverified issuer is used only to select a configuration; signature, issuer, audience, expiry, algorithm, and subject are then verified against that configuration.
+- `protectedProcedure`는 유효한 access token을 요구한다.
+- workspace repository는 매 요청에서 derived user ID의 membership을 다시
+  확인한다.
+- owner만 멤버 변경, 기억 승인·삭제, 문서 삭제, 평가와 release 활성화를 할 수
+  있다.
+- provider claim을 애플리케이션 권한으로 직접 신뢰하지 않는다.

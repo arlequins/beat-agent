@@ -17,7 +17,7 @@ const LivenessSchema = z
 
 const ReadinessSchema = z
   .object({
-    checks: z.object({ database: z.enum(["ok", "unavailable"]) }),
+    checks: z.object({ storage: z.enum(["ok", "unavailable"]) }),
     requestId: RequestIdSchema,
     status: z.enum(["ok", "unavailable"]),
   })
@@ -64,7 +64,8 @@ const livenessRoute = createRoute({
 });
 
 const readinessRoute = createRoute({
-  description: "Checks PostgreSQL and any configured external dependencies.",
+  description:
+    "Checks the primary S3 store and configured external dependencies.",
   method: "get",
   path: "/health/ready",
   responses: {
@@ -134,7 +135,7 @@ export function registerOpenApiRoutes(
       }
       return context.json(
         {
-          checks: { database: "ok" as const },
+          checks: { storage: "ok" as const },
           requestId: context.get("requestId"),
           status: "ok" as const,
         },
@@ -144,7 +145,7 @@ export function registerOpenApiRoutes(
       context.get("logger").warn("health.readiness.failed", { error });
       return context.json(
         {
-          checks: { database: "unavailable" as const },
+          checks: { storage: "unavailable" as const },
           requestId: context.get("requestId"),
           status: "unavailable" as const,
         },

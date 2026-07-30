@@ -6,7 +6,7 @@ dependency direction expected from production features.
 
 ```text
 apps/web -> tRPC router -> application use case -> port <- adapter
-apps/api ------^                                      <- Drizzle / S3 / OIDC
+apps/api ------^                                      <- S3 / OIDC / Bedrock
 apps/batch -> composition -> application use case    <- provider SDKs
 ```
 
@@ -16,7 +16,7 @@ apps/batch -> composition -> application use case    <- provider SDKs
 | --- | --- | --- |
 | Domain | `packages/*/src/domain` | Business vocabulary and rules with no framework dependencies |
 | Application | `packages/*/src/application` | Use cases and outbound ports |
-| Adapters | `packages/trpc/src/adaptors`, `packages/db-backbone`, `apps/*/src/adaptors` | Translate databases, object storage, identity, and delivery mechanisms into ports |
+| Adapters | `packages/trpc/src/adaptors`, `apps/*/src/adaptors` | Translate S3 object storage, identity, model providers, and delivery mechanisms into ports |
 | Composition | `packages/trpc/src/composition`, `apps/*/composition` | Select concrete adapters and construct use cases |
 | Delivery | tRPC routers, Hono routes, Lambda handlers, React views | Validate and translate requests, then call application behavior |
 
@@ -36,7 +36,7 @@ unknown infrastructure errors remain private and are reported as internal errors
 | `apps/batch` | Step Functions and Lambda delivery adapters plus batch composition roots |
 | `packages/trpc` | Typed transport contracts, middleware, infrastructure adapters, and request composition |
 | `packages/service` | Framework-independent domain models, application ports, and use cases |
-| `packages/db-backbone` | Drizzle adapters, PostgreSQL schema, migrations, and seeds |
+| `packages/db-backbone` | Inherited template reference code; not imported by the Beat production composition root |
 | `packages/auth` | Authorization policy, session use cases, and OIDC infrastructure adapters |
 | `packages/logger` | Structured logging and telemetry adapters |
 
@@ -75,8 +75,8 @@ cp .env.localhost.example .env.localhost
 pnpm dev:local
 ```
 
-This starts PostgreSQL, applies migrations and seeds, and runs the local OIDC
-provider, API, and web app. The defaults are:
+This starts MinIO, prepares the Beat bucket, and runs the local OIDC provider,
+API, and web app. The defaults are:
 
 - Web: `http://localhost:3000`
 - API: `http://localhost:5000`
@@ -85,6 +85,8 @@ provider, API, and web app. The defaults are:
 - API explorer: `http://localhost:5000/docs`
 - OpenAPI contract: `http://localhost:5000/openapi.json`
 - tRPC: `http://localhost:5000/api/trpc`
+- MinIO API: `http://localhost:59000`
+- MinIO console: `http://localhost:59001`
 
 `API_PORT` changes the local API port. `API_CORS_ORIGINS` accepts a
 comma-separated allowlist and defaults to `NEXT_PUBLIC_SITE_URL`.
@@ -93,7 +95,8 @@ comma-separated allowlist and defaults to `NEXT_PUBLIC_SITE_URL`.
 
 - `apps/web/sst.config.ts` deploys the static Next.js export to S3 and CloudFront.
 - `apps/api/sst.config.ts` selects a Lambda Function URL or API Gateway HTTP API preset.
-- Optional VPC variables attach API and batch Lambdas to private resources.
+- The API owns a versioned private data bucket and SQS FIFO queue. No VPC or
+  relational database is required.
 
 After deploying the API, set `NEXT_PUBLIC_API_URL` to its public URL before
 building and deploying the web app.

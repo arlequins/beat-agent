@@ -12,6 +12,7 @@ import {
   ingestTextDocumentInputSchema,
   memoryScopeInputSchema,
   messageCitationInputSchema,
+  publishReleaseInputSchema,
   reviewMemoryInputSchema,
   startIndexInputSchema,
   submitFeedbackInputSchema,
@@ -88,6 +89,21 @@ export const agentRouter = {
     .query(({ ctx, input }) =>
       ctx.services.agent.listEvaluationRuns(
         actor(ctx.session.user.id, input.workspaceId),
+      ),
+    ),
+  activeRelease: protectedProcedure
+    .input(workspaceScopeInputSchema)
+    .query(async ({ ctx, input }) => {
+      const actorInput = actor(ctx.session.user.id, input.workspaceId);
+      await ctx.services.agent.assertMember(actorInput);
+      return ctx.services.agent.activeRelease(input.workspaceId);
+    }),
+  publishRelease: protectedProcedure
+    .input(publishReleaseInputSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.agent.publishRelease(
+        actor(ctx.session.user.id, input.workspaceId),
+        { minimumCitationRecall: input.minimumCitationRecall },
       ),
     ),
   conversations: protectedProcedure
@@ -239,7 +255,9 @@ export const agentRouter = {
           message: "Local model completion is not configured",
         });
       }
-      let message: Awaited<ReturnType<typeof ctx.services.agent.addMessage>>;
+      let message:
+        | Awaited<ReturnType<typeof ctx.services.agent.addMessage>>
+        | undefined;
       try {
         for await (const event of streamAgentCompletion(
           ctx.services,
@@ -255,6 +273,7 @@ export const agentRouter = {
           message: "Local model request failed",
         });
       }
+      if (!message) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       return { message };
     }),
   createDocument: protectedProcedure

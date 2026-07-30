@@ -69,39 +69,6 @@ export const serverEnv = createEnv({
     OIDC_PROVIDERS_JSON: z.string().optional(),
     /** Comma-separated OIDC `issuer|subject` identities promoted to administrator. */
     AUTH_BOOTSTRAP_ADMIN_IDENTITIES: z.string().optional(),
-    /** Initial Beat-owned administrator login. Required only until provisioned. */
-    AUTH_INITIAL_ADMIN_EMAIL: z.string().email().optional(),
-    /** Initial Beat-owned administrator password; it never reaches the browser. */
-    AUTH_INITIAL_ADMIN_PASSWORD: z.string().min(16).optional(),
-    /** JSON Web Key with private ES256 material for Beat's OIDC issuer. */
-    OIDC_SIGNING_PRIVATE_JWK: z.string().min(1).optional(),
-    /** Stable key identifier exposed from Beat's JWKS endpoint. */
-    OIDC_SIGNING_KEY_ID: z.string().min(1).optional(),
-    /** Enables Beat's first-party production OIDC issuer. */
-    INTERNAL_OIDC_ENABLED: z
-      .enum(["true", "false"])
-      .transform((value) => value === "true")
-      .optional()
-      .default(false),
-    /** Lifetime of a rotating refresh token. */
-    OIDC_REFRESH_TOKEN_TTL_DAYS: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(90)
-      .optional(),
-    /** Fixed-window limit for internal OIDC password attempts per IP and identity. */
-    OIDC_LOGIN_RATE_LIMIT_REQUESTS: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional(),
-    /** Fixed-window duration for internal OIDC password attempts. */
-    OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional(),
     /** Comma-separated browser origins accepted by the Hono API. */
     API_CORS_ORIGINS: z.string().optional(),
     /** Local Hono server port. */
@@ -154,6 +121,20 @@ export const serverEnv = createEnv({
       .optional(),
     S3_UPLOAD_BUCKET: z.string().min(3).optional(),
     S3_UPLOAD_PREFIX: z.string().min(1).optional(),
+    /** Required primary data bucket for Beat conversations, memory, documents, and feedback. */
+    S3_AGENT_BUCKET: z.string().min(3).optional(),
+    /** Prefix isolating one stage inside the primary data bucket. */
+    S3_AGENT_PREFIX: z.string().min(1).optional(),
+    /** Optional S3-compatible endpoint used by the local MinIO profile. */
+    S3_AGENT_ENDPOINT: z.url().optional(),
+    S3_AGENT_FORCE_PATH_STYLE: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
+    /** Optional paid production model. Omit to keep Bedrock disabled. */
+    BEDROCK_MODEL_ID: z.string().min(1).optional(),
+    /** Exact model or inference-profile ARN granted to the Lambda runtime. */
+    BEDROCK_MODEL_ARN: z.string().startsWith("arn:aws:bedrock:").optional(),
     /** Local-only Ollama endpoint. Omit to keep model completion disabled. */
     OLLAMA_BASE_URL: z.url().optional(),
     /** Pulled Ollama model tag; `qwen3:4b` is the low-memory default. */
@@ -192,15 +173,6 @@ export const serverEnv = createEnv({
     OIDC_PROVIDERS_JSON: process.env.OIDC_PROVIDERS_JSON,
     AUTH_BOOTSTRAP_ADMIN_IDENTITIES:
       process.env.AUTH_BOOTSTRAP_ADMIN_IDENTITIES,
-    AUTH_INITIAL_ADMIN_EMAIL: process.env.AUTH_INITIAL_ADMIN_EMAIL,
-    AUTH_INITIAL_ADMIN_PASSWORD: process.env.AUTH_INITIAL_ADMIN_PASSWORD,
-    OIDC_SIGNING_PRIVATE_JWK: process.env.OIDC_SIGNING_PRIVATE_JWK,
-    OIDC_SIGNING_KEY_ID: process.env.OIDC_SIGNING_KEY_ID,
-    INTERNAL_OIDC_ENABLED: process.env.INTERNAL_OIDC_ENABLED,
-    OIDC_REFRESH_TOKEN_TTL_DAYS: process.env.OIDC_REFRESH_TOKEN_TTL_DAYS,
-    OIDC_LOGIN_RATE_LIMIT_REQUESTS: process.env.OIDC_LOGIN_RATE_LIMIT_REQUESTS,
-    OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS:
-      process.env.OIDC_LOGIN_RATE_LIMIT_WINDOW_SECONDS,
     API_CORS_ORIGINS: process.env.API_CORS_ORIGINS,
     API_PORT: process.env.API_PORT,
     API_DEPLOYMENT_PRESET: process.env.API_DEPLOYMENT_PRESET,
@@ -223,6 +195,12 @@ export const serverEnv = createEnv({
     S3_CACHE_FORCE_PATH_STYLE: process.env.S3_CACHE_FORCE_PATH_STYLE,
     S3_UPLOAD_BUCKET: process.env.S3_UPLOAD_BUCKET,
     S3_UPLOAD_PREFIX: process.env.S3_UPLOAD_PREFIX,
+    S3_AGENT_BUCKET: process.env.S3_AGENT_BUCKET,
+    S3_AGENT_PREFIX: process.env.S3_AGENT_PREFIX,
+    S3_AGENT_ENDPOINT: process.env.S3_AGENT_ENDPOINT,
+    S3_AGENT_FORCE_PATH_STYLE: process.env.S3_AGENT_FORCE_PATH_STYLE,
+    BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID,
+    BEDROCK_MODEL_ARN: process.env.BEDROCK_MODEL_ARN,
     OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
     OLLAMA_MODEL: process.env.OLLAMA_MODEL,
     OLLAMA_EMBEDDING_MODEL: process.env.OLLAMA_EMBEDDING_MODEL,
