@@ -20,6 +20,7 @@ function run(command, args, env = process.env) {
 }
 
 try {
+  run("pnpm", ["turbo", "run", "build", "--filter=@arlequins/api..."]);
   run("docker", [...composeArgs, "up", "-d", "--wait", "minio-e2e"]);
   run("docker", [...composeArgs, "run", "--rm", "minio-init"]);
   run("pnpm", ["exec", "playwright", "test", ...process.argv.slice(2)]);
