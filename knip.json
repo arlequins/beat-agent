@@ -27,6 +27,9 @@
         "shared/entry.ts"
       ]
     },
+    "apps/web": {
+      "entry": ["public/sw.js"]
+    },
     "packages/db-backbone": {
       "entry": ["scripts/**/*.ts"]
     },

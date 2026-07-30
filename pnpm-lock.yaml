@@ -193,15 +193,6 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.62.0
-      '@testing-library/jest-dom':
-        specifier: 'catalog:'
-        version: 7.0.0(@testing-library/dom@10.4.1)
-      '@testing-library/react':
-        specifier: 'catalog:'
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@testing-library/user-event':
-        specifier: 'catalog:'
-        version: 14.6.1(@testing-library/dom@10.4.1)
       '@turbo/gen':
         specifier: ^2.10.5
         version: 2.10.7(@types/node@26.1.1)
@@ -404,9 +395,6 @@ importers:
       '@arlequins/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
-      '@testing-library/jest-dom':
-        specifier: 'catalog:'
-        version: 7.0.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: 'catalog:'
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
