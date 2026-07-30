@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const envCommand = "pnpm exec dotenv -e .env.e2e --";
+const envCommand = "pnpm exec dotenv -e .env.e2e -o --";
 
 export default defineConfig({
   expect: {
