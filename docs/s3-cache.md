@@ -1,7 +1,7 @@
 # S3 Cache
 
-`@arlequins/s3-cache` is a reusable S3-backed cache for API responses and database
-query results. The API SST stack provisions and links a dedicated bucket. Local
+`@arlequins/s3-cache` is a reusable S3-backed cache for API responses and
+derived query results. The API SST stack provisions and links a dedicated bucket. Local
 development remains functional when no cache bucket is configured.
 
 ## Behavior
@@ -33,18 +33,18 @@ Do not put raw authorization tokens or sensitive identifiers in logical keys.
 Although keys are hashed, cache namespaces and values still require appropriate
 S3 encryption, access control, and retention policy.
 
-## Database query cache
+## Derived query cache
 
-Inject a domain namespace at the service or use-case boundary. Keep Drizzle and
-repository packages unaware of the cache implementation.
+Inject a domain namespace at the service or use-case boundary. Keep repository
+packages unaware of the cache implementation.
 
 ```ts
-const postCache = rootCache.namespace("db").namespace("posts");
-const posts = await postCache.getOrSet("recent:10", queryRecentPosts);
+const memoryCache = rootCache.namespace("memory");
+const memories = await memoryCache.getOrSet("recent:10", queryRecentMemories);
 ```
 
 After a successful write, delete the exact key or clear the affected domain
-namespace. Cache writes and invalidations must never determine database
+namespace. Cache writes and invalidations must never determine durable-storage
 correctness.
 
 ## Environment

@@ -11,7 +11,7 @@ pnpm --filter @arlequins/api sst:deploy
 | Path | Purpose |
 | --- | --- |
 | `GET /health/live` | Process liveness and request ID. |
-| `GET /health/ready` | Readiness, including PostgreSQL connectivity. |
+| `GET /health/ready` | Readiness, including S3 bucket connectivity. |
 | `GET /health` | Compatibility alias for liveness. |
 | `GET /docs` | Interactive Scalar API reference and request client. |
 | `GET /openapi.json` | OpenAPI 3.1 contract used by the API explorer. |
@@ -33,7 +33,7 @@ Set `API_DEPLOYMENT_PRESET` before running `pnpm --filter @arlequins/api sst:dep
 | Preset | Best fit | Throttling | WAF | Custom domain |
 | --- | --- | --- | --- | --- |
 | `function-url` (default) | Internal APIs, prototypes, and low-traffic services that favor minimum cost and configuration | No API-level throttle. Use reserved concurrency or application controls. | Set `API_WAF_ENABLED=true` to add an SST Router backed by CloudFront and WAF. | `API_CUSTOM_DOMAIN` adds the same Router edge layer. |
-| `api-gateway` | Public APIs that need managed access logs, route controls, and request throttling | `API_THROTTLE_RATE_LIMIT` and `API_THROTTLE_BURST_LIMIT`; defaults are 100 and 200. | API Gateway HTTP APIs do not accept the template's direct WAF option. Add CloudFront/WAF in front or use a REST API when direct API Gateway WAF association is required. | `API_CUSTOM_DOMAIN` configures the API Gateway domain directly. |
+| `api-gateway` | Public APIs that need managed access logs, route controls, and request throttling | `API_THROTTLE_RATE_LIMIT` and `API_THROTTLE_BURST_LIMIT`; defaults are 100 and 200. | API Gateway HTTP APIs do not accept the direct WAF option. Add CloudFront/WAF in front or use a REST API when direct API Gateway WAF association is required. | `API_CUSTOM_DOMAIN` configures the API Gateway domain directly. |
 
 Examples:
 

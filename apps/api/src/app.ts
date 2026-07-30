@@ -102,7 +102,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
   const errorReporter = options.errorReporter ?? noopErrorReporter;
   const telemetry =
     options.telemetry ??
-    createTelemetry({ service: "api", metricNamespace: "Template/Api" });
+    createTelemetry({ service: "api", metricNamespace: "Beat/Api" });
   const stage = process.env.SST_STAGE ?? "local";
   const bodyLimitBytes =
     options.bodyLimitBytes ?? serverEnv.API_BODY_LIMIT_BYTES ?? 1_048_576;

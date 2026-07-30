@@ -5,7 +5,7 @@ import type {
 
 /**
  * AWS SDK-free boundary for Bedrock Converse streaming. Hosts inject the SDK adapter,
- * keeping this template installable and testable without cloud credentials.
+ * keeping Beat installable and testable without cloud credentials.
  */
 export type BedrockConversePort = {
   stream(input: {

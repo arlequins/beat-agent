@@ -1,7 +1,0 @@
-{
-  "extends": "@arlequins/tsconfig/base.json",
-  "compilerOptions": {
-    "types": ["node"]
-  },
-  "include": ["drizzle.config.ts", "scripts/**/*.ts"]
-}

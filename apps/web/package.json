@@ -35,6 +35,7 @@
   "devDependencies": {
     "@arlequins/tailwind-config": "workspace:*",
     "@arlequins/tsconfig": "workspace:*",
+    "@tailwindcss/postcss": "catalog:",
     "@testing-library/react": "catalog:",
     "@testing-library/user-event": "catalog:",
     "@types/node": "catalog:",

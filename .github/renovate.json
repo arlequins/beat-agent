@@ -75,12 +75,6 @@
       "groupName": "SST major"
     },
     {
-      "description": "Isolate Drizzle major updates",
-      "matchPackageNames": ["drizzle-orm", "drizzle-kit", "drizzle-zod"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "Drizzle major"
-    },
-    {
       "description": "Isolate authentication library major updates",
       "matchPackageNames": [
         "jose",

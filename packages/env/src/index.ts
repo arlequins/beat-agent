@@ -12,7 +12,6 @@ export {
   type ApiDeploymentPreset as ApiDeploymentPresetType,
   resolveApiDeploymentConfig,
 } from "./api-deployment.js";
-export { type DatabaseEnv, loadDatabaseEnv } from "./database.js";
 export { clientEnv } from "./env-client.js";
 export {
   DEFAULT_SST_AWS_REGION,

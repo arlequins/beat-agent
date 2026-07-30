@@ -189,7 +189,7 @@ export default $config({
       ? [serverEnv.ALERT_TOPIC_ARN]
       : [];
     const metric = (name: string) => ({
-      namespace: "Template/Api",
+      namespace: "Beat/Api",
       metricName: name,
       dimensions: { stage: $app.stage },
       period: 300,
@@ -222,7 +222,7 @@ export default $config({
               region,
               title: "API requests, errors, latency, and cold starts",
               metrics: [
-                ["Template/Api", "RequestCount", "stage", $app.stage],
+                ["Beat/Api", "RequestCount", "stage", $app.stage],
                 [".", "ServerErrorCount", ".", "."],
                 [".", "RequestDuration", ".", ".", { stat: "Average" }],
                 [".", "ColdStart", ".", "."],

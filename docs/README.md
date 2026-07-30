@@ -10,12 +10,6 @@ local application; the pages below explain design decisions and ongoing work.
    event, conditional state, release, concurrency and recovery model.
 2. [Application architecture](architecture.md) explains workspace boundaries
    and the browser-to-S3 request flow.
-3. [Developer experience](developer-experience.md) covers generators, fast
-   feedback commands, and template qualification.
-4. [Template readiness](template-readiness.md) lists the capabilities to retain
-   or deliberately remove when adapting the template.
-5. [Generic application baseline](generic-application.md) explains the reusable
-   CRUD, authorization, upload, and Clean Architecture example.
 
 ## Development
 
@@ -35,7 +29,7 @@ local application; the pages below explain design decisions and ongoing work.
   collector configuration.
 - [UI development](ui-development.md): component tests, Storybook, and
   accessibility checks.
-- [S3 cache](s3-cache.md): API and database caching, TTL, invalidation, and
+- [S3 cache](s3-cache.md): API caching, TTL, invalidation, and
   local configuration.
 
 ## Deployment and Operations

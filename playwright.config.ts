@@ -1,6 +1,18 @@
+import { readFileSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
-const envCommand = "pnpm exec dotenv -e .env.e2e -o --";
+const e2eEnv = Object.fromEntries(
+  readFileSync(".env.e2e", "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .map((line) => {
+      const separator = line.indexOf("=");
+      return [line.slice(0, separator), line.slice(separator + 1)];
+    }),
+);
+
+Object.assign(process.env, e2eEnv);
 
 export default defineConfig({
   expect: {
@@ -31,19 +43,22 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `${envCommand} pnpm --filter @arlequins/oidc-mock start`,
+      command: "pnpm --filter @arlequins/oidc-mock start",
+      env: e2eEnv,
       url: "http://localhost:5557/.well-known/openid-configuration",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
     {
-      command: `${envCommand} pnpm --filter @arlequins/api start`,
+      command: "pnpm --filter @arlequins/api start",
+      env: e2eEnv,
       url: "http://localhost:5100/health",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
     {
-      command: `${envCommand} pnpm --filter @arlequins/web exec next dev --port 3100`,
+      command: "pnpm --filter @arlequins/web exec next dev --port 3100",
+      env: e2eEnv,
       url: "http://localhost:3100",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

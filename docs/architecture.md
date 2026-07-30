@@ -1,13 +1,10 @@
 # Clean Architecture
 
-This template keeps policy independent from delivery frameworks and providers.
-The example content slice is intentionally small, but it demonstrates the same
-dependency direction expected from production features.
+Beat keeps policy independent from delivery frameworks and providers.
 
 ```text
 apps/web -> tRPC router -> application use case -> port <- adapter
 apps/api ------^                                      <- S3 / OIDC / Bedrock
-apps/batch -> composition -> application use case    <- provider SDKs
 ```
 
 ## Layers
@@ -20,8 +17,8 @@ apps/batch -> composition -> application use case    <- provider SDKs
 | Composition | `packages/trpc/src/composition`, `apps/*/composition` | Select concrete adapters and construct use cases |
 | Delivery | tRPC routers, Hono routes, Lambda handlers, React views | Validate and translate requests, then call application behavior |
 
-Dependencies point inward. Domain and application code never imports Drizzle,
-Hono, tRPC, AWS SDKs, environment loaders, or concrete logging packages.
+Dependencies point inward. Domain and application code never imports Hono,
+tRPC, AWS SDKs, environment loaders, or concrete logging packages.
 
 Application failures use stable framework-neutral codes from `@arlequins/service`.
 Delivery adapters map those contracts to tRPC codes or HTTP status responses;
@@ -33,10 +30,8 @@ unknown infrastructure errors remain private and are reported as internal errors
 | --- | --- |
 | `apps/web` | Static Next.js App Router output, browser interactions, and client-side tRPC queries |
 | `apps/api` | Hono delivery adapter, HTTP policy, health endpoints, local server, and Lambda entry point |
-| `apps/batch` | Step Functions and Lambda delivery adapters plus batch composition roots |
 | `packages/trpc` | Typed transport contracts, middleware, infrastructure adapters, and request composition |
 | `packages/service` | Framework-independent domain models, application ports, and use cases |
-| `packages/db-backbone` | Inherited template reference code; not imported by the Beat production composition root |
 | `packages/auth` | Authorization policy, session use cases, and OIDC infrastructure adapters |
 | `packages/logger` | Structured logging and telemetry adapters |
 
@@ -106,6 +101,6 @@ building and deploying the web app.
 - Add typed application APIs as thin routers in `packages/trpc/src/router`.
 - Add ordinary HTTP endpoints as dedicated Hono route modules.
 - Put provider implementations in adapter directories and select them in composition roots.
-- Add Drizzle tables under `packages/db-backbone/src/schemas` and export them from `schema.ts`.
 - Centralize environment parsing in `@arlequins/env` and update examples plus `turbo.json`.
-- Commit a migration for every schema change and numbered seeds for data changes.
+- Add immutable event objects and versioned release manifests for durable data changes.
+- Protect mutable heads and leases with S3 conditional writes.

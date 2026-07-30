@@ -25,38 +25,6 @@ export const serverEnv = createEnv({
     SUBNET_IDS: z.string().optional(),
     SECURITY_GROUP_IDS: z.string().optional(),
 
-    /** Explicit opt-in for the optional SST Aurora Serverless v2 stack. */
-    AURORA_ENABLED: z
-      .enum(["true", "false"])
-      .transform((value) => value === "true")
-      .optional()
-      .default(false),
-    AURORA_SUBNET_IDS: z.string().optional(),
-    AURORA_SECURITY_GROUP_IDS: z.string().optional(),
-    AURORA_DATABASE_NAME: z
-      .string()
-      .regex(/^[a-z][a-z0-9_]{0,62}$/)
-      .optional(),
-    AURORA_MASTER_USERNAME: z
-      .string()
-      .regex(/^[a-z][a-z0-9_]{0,62}$/)
-      .optional(),
-    AURORA_MASTER_PASSWORD: z.string().min(16).optional(),
-    AURORA_MIN_ACU: z.coerce.number().min(0.5).max(128).optional().default(0.5),
-    AURORA_MAX_ACU: z.coerce.number().min(0.5).max(128).optional().default(1),
-
-    DATABASE_HOST: z.string().optional(),
-    DATABASE_PORT: z.string().optional(),
-    DATABASE_USER: z.string().optional(),
-    DATABASE_PASSWORD: z.string().optional(),
-    DATABASE_NAME: z.string().optional(),
-    POSTGRES_POOL_MAX: z.string().optional(),
-    DATABASE_SSL_MODE: z.enum(["disable", "require", "verify-full"]).optional(),
-    /** Explicit opt-in for example data outside local and test stages. */
-    SEED_SAMPLE_DATA: z
-      .enum(["true", "false"])
-      .transform((value) => value === "true")
-      .optional(),
     /** OIDC issuer expected in API access tokens. */
     OIDC_ISSUER_URL: z.url().optional(),
     /** OAuth resource-server audience expected in API access tokens. */
@@ -149,23 +117,6 @@ export const serverEnv = createEnv({
     VPC_ID: process.env.VPC_ID,
     SUBNET_IDS: process.env.SUBNET_IDS,
     SECURITY_GROUP_IDS: process.env.SECURITY_GROUP_IDS,
-    AURORA_ENABLED: process.env.AURORA_ENABLED,
-    AURORA_SUBNET_IDS: process.env.AURORA_SUBNET_IDS,
-    AURORA_SECURITY_GROUP_IDS: process.env.AURORA_SECURITY_GROUP_IDS,
-    AURORA_DATABASE_NAME: process.env.AURORA_DATABASE_NAME,
-    AURORA_MASTER_USERNAME: process.env.AURORA_MASTER_USERNAME,
-    AURORA_MASTER_PASSWORD: process.env.AURORA_MASTER_PASSWORD,
-    AURORA_MIN_ACU: process.env.AURORA_MIN_ACU,
-    AURORA_MAX_ACU: process.env.AURORA_MAX_ACU,
-
-    DATABASE_HOST: process.env.DATABASE_HOST,
-    DATABASE_PORT: process.env.DATABASE_PORT,
-    DATABASE_USER: process.env.DATABASE_USER,
-    DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
-    DATABASE_NAME: process.env.DATABASE_NAME,
-    POSTGRES_POOL_MAX: process.env.POSTGRES_POOL_MAX,
-    DATABASE_SSL_MODE: process.env.DATABASE_SSL_MODE,
-    SEED_SAMPLE_DATA: process.env.SEED_SAMPLE_DATA,
     OIDC_ISSUER_URL: process.env.OIDC_ISSUER_URL,
     OIDC_AUDIENCE: process.env.OIDC_AUDIENCE,
     OIDC_JWKS_URI: process.env.OIDC_JWKS_URI,

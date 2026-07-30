@@ -11,8 +11,8 @@ Use Vitest.
 
 - Use unit tests for pure validators, utilities, and service behavior.
 - Use contract tests for public tRPC input and output shapes.
-- Use PostgreSQL integration tests for migrations, seeds, adapters, and
-  representative service paths.
+- Use MinIO integration tests for conditional writes, versioned objects,
+  release activation, and representative service paths.
 - Use Playwright for browser authentication and critical user journeys.
 - Keep AWS sandbox smoke tests separate from credential-free pull-request jobs.
 
@@ -21,11 +21,11 @@ Operational details and the flaky-test policy live in
 
 ## Policy
 
-- Prefer dependency injection and manual test doubles for database and external
+- Prefer dependency injection and manual test doubles for storage and external
   service dependencies. Use `vi.mock` when a module boundary cannot reasonably
   be injected.
-- Use a real isolated PostgreSQL instance when SQL behavior, migrations,
-  transactions, or constraints are part of the contract.
+- Use a real isolated MinIO bucket when S3 conditional-write, versioning, or
+  object-listing behavior is part of the contract.
 - Apply the existing Biome formatter, linter, and import-order conventions to
   test code.
 - `pnpm test:coverage` enforces at least 75% for statements, branches,
@@ -76,22 +76,23 @@ describe("createBatchSchema", () => {
 });
 ```
 
-### Functions that Use a Database
+### Functions that Use Storage
 
-Design the function so it receives a Drizzle client or repository dependency as an argument. In tests, pass a manual double. Replacing an entire module with `vi.mock` should be a last resort.
+Design the function so it receives a storage port or repository dependency as
+an argument. In tests, pass a manual double. Replacing an entire module with
+`vi.mock` should be a last resort.
 
 ```ts
 // service
-export function createPostService(db: Database) {
+export function createConversationService(repository: ConversationRepository) {
   return {
-    listPublished: () => db.select().from(Posts).where(/* ... */),
+    list: () => repository.list(),
   };
 }
 
 // test
-const dbDouble = {
-  select: () => ({ from: () => ({ where: () => [] }) }),
+const repositoryDouble = {
+  list: async () => [],
 };
-
-const svc = createPostService(dbDouble as unknown as Database);
+const service = createConversationService(repositoryDouble);
 ```

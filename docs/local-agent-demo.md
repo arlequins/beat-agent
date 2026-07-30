@@ -1,7 +1,7 @@
 # Local agent demo
 
 This is the complete no-cloud demonstration path. It uses Docker only for
-PostgreSQL and native Ollama for models, which is typically the fastest choice
+MinIO and native Ollama for models, which is typically the fastest choice
 on Apple Silicon.
 
 ```bash

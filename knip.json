@@ -20,7 +20,8 @@
       ]
     },
     "apps/web": {
-      "entry": ["public/sw.js"]
+      "entry": ["public/sw.js"],
+      "ignoreDependencies": ["@tailwindcss/postcss"]
     },
     "packages/ui": {
       "entry": ["postcss.config.js", "src/**/*.stories.tsx"]

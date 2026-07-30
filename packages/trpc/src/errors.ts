@@ -1,5 +1,5 @@
 /** User-facing copy (also sent as `shape.message` when applicable). */
-export const TRPC_DATABASE_UNAVAILABLE_MESSAGE =
+export const TRPC_INFRASTRUCTURE_UNAVAILABLE_MESSAGE =
   "cannot connect to the server. please try again later.";
 
 export const TRPC_UNAUTHORIZED_MESSAGE =
@@ -11,7 +11,7 @@ export const TRPC_GENERIC_CLIENT_MESSAGE =
 /** Serialized on `data` for clients (TanStack Query / tRPC client). */
 export type TrpcClientErrorFlags = {
   applicationError?: ReturnType<typeof toApplicationErrorContract>;
-  databaseUnavailable: boolean;
+  infrastructureUnavailable: boolean;
   unauthorized: boolean;
 };
 
@@ -22,8 +22,8 @@ function readTrpcErrorPayload(error: unknown): {
   return error as { data?: TrpcClientErrorFlags & Record<string, unknown> };
 }
 
-export function isTrpcDatabaseUnavailableError(error: unknown): boolean {
-  return readTrpcErrorPayload(error).data?.databaseUnavailable === true;
+export function isTrpcInfrastructureUnavailableError(error: unknown): boolean {
+  return readTrpcErrorPayload(error).data?.infrastructureUnavailable === true;
 }
 
 export function isTrpcUnauthorizedError(error: unknown): boolean {
@@ -32,8 +32,8 @@ export function isTrpcUnauthorizedError(error: unknown): boolean {
 
 /** Prefer server-provided `error.message` when we tagged the error; else generic. */
 export function getTrpcUserFacingMessage(error: unknown): string {
-  if (isTrpcDatabaseUnavailableError(error)) {
-    return TRPC_DATABASE_UNAVAILABLE_MESSAGE;
+  if (isTrpcInfrastructureUnavailableError(error)) {
+    return TRPC_INFRASTRUCTURE_UNAVAILABLE_MESSAGE;
   }
   if (isTrpcUnauthorizedError(error)) {
     return TRPC_UNAUTHORIZED_MESSAGE;
@@ -81,7 +81,7 @@ function visitErrorChain(node: unknown, depth: number): boolean {
   return false;
 }
 
-export function isDatabaseConnectionError(error: unknown): boolean {
+export function isInfrastructureConnectionError(error: unknown): boolean {
   return visitErrorChain(error, 0);
 }
 
@@ -102,9 +102,9 @@ export function formatTrpcErrorShape<
 >(opts: { shape: T; error: unknown; zodError: unknown }): T {
   const { shape, error, zodError } = opts;
 
-  const databaseUnavailable =
-    isDatabaseConnectionError(error) ||
-    isDatabaseConnectionError(
+  const infrastructureUnavailable =
+    isInfrastructureConnectionError(error) ||
+    isInfrastructureConnectionError(
       error && typeof error === "object" && "cause" in error
         ? (error as { cause: unknown }).cause
         : undefined,
@@ -118,8 +118,8 @@ export function formatTrpcErrorShape<
   );
 
   let message = shape.message;
-  if (databaseUnavailable) {
-    message = TRPC_DATABASE_UNAVAILABLE_MESSAGE;
+  if (infrastructureUnavailable) {
+    message = TRPC_INFRASTRUCTURE_UNAVAILABLE_MESSAGE;
   } else if (unauthorized) {
     message = TRPC_UNAUTHORIZED_MESSAGE;
   }
@@ -131,7 +131,7 @@ export function formatTrpcErrorShape<
       ...shape.data,
       zodError,
       applicationError,
-      databaseUnavailable,
+      infrastructureUnavailable,
       unauthorized,
     },
   };

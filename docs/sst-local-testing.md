@@ -36,7 +36,7 @@ cp .env.localhost.example .env.localhost
 pnpm dev:local
 ```
 
-This uses local PostgreSQL, the development OIDC provider, the Node Hono server, and the Next.js development server. The E2E suite exercises the same local path with isolated test data:
+This uses local MinIO, the development OIDC provider, the Node Hono server, and the Next.js development server. The E2E suite exercises the same local path with an isolated bucket:
 
 ```bash
 pnpm test:e2e

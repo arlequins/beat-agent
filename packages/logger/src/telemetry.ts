@@ -36,7 +36,7 @@ export function createTelemetry(options: {
   const counters = new Map<string, Counter>();
   const histograms = new Map<string, Histogram>();
   const metricSink = options.metricSink ?? console.log;
-  const namespace = options.metricNamespace ?? "Template/Application";
+  const namespace = options.metricNamespace ?? "Beat/Application";
 
   return {
     async trace(name, attributes, operation) {

@@ -1,6 +1,6 @@
 # Observability
 
-The template combines structured JSON logs, CloudWatch Embedded Metric Format,
+Beat combines structured JSON logs, CloudWatch Embedded Metric Format,
 and optional OpenTelemetry export.
 
 ## OpenTelemetry export
