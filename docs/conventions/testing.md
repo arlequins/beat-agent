@@ -28,7 +28,14 @@ Operational details and the flaky-test policy live in
   transactions, or constraints are part of the contract.
 - Apply the existing Biome formatter, linter, and import-order conventions to
   test code.
-- There is no mandatory coverage percentage yet. At minimum, cover public API happy paths and representative edge cases.
+- `pnpm test:coverage` enforces at least 50% for statements, branches,
+  functions, and lines across application, domain, adapter, and testable browser
+  logic. Generated declarations, framework entry points, ports, types, and
+  presentational primitives are intentionally outside this unit-coverage
+  denominator and remain covered by type checks, contract tests, Storybook, or
+  Playwright as appropriate.
+- Cover public API happy paths and representative error, authorization,
+  persistence, and privacy boundaries.
 
 ## Test File Location and Naming
 
@@ -42,6 +49,7 @@ Operational details and the flaky-test policy live in
 - Define workspace test tasks in `turbo.json` and declare cache outputs when a
   task writes reports.
 - Run all workspace tests from the root with `pnpm test`.
+- Run the aggregate coverage gate with `pnpm test:coverage`.
 - Run tests in CI alongside lint, format, and typecheck jobs.
 - Run Playwright E2E tests in a separate CI job with isolated external dependencies.
 - Do not run tests in pre-commit hooks. Keep pre-commit fast and stop at typecheck.

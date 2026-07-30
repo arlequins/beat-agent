@@ -23,7 +23,7 @@
     "dev": "tsc",
     "format": "biome format .",
     "lint": "biome lint .",
-    "test": "pnpm with-env vitest run",
+    "test": "dotenv -e ../../.env.example -e ../../.env -- vitest run",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
     "with-env": "dotenv -e ../../.env --"
   },

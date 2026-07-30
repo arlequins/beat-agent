@@ -2,6 +2,11 @@
 
 import { useEffect } from "react";
 
+export function registerPwaServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  return navigator.serviceWorker.register("/sw.js", { scope: "/" });
+}
+
 export function PwaRegistration() {
   useEffect(() => {
     if (
@@ -12,7 +17,7 @@ export function PwaRegistration() {
     }
 
     const register = () => {
-      void navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      void registerPwaServiceWorker();
     };
 
     if (document.readyState === "complete") {

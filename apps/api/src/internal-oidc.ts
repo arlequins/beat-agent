@@ -15,13 +15,12 @@ import {
   UserRole,
 } from "@arlequins/db-backbone/schema";
 import { clientEnv, serverEnv } from "@arlequins/env";
-import { and, eq, gt, isNull } from "drizzle-orm";
 import type { RateLimitPort } from "@arlequins/service";
-import { exportJWK, importJWK, jwtVerify, SignJWT } from "jose";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { Hono } from "hono";
-
-import type { ApiBindings } from "./app";
+import { exportJWK, importJWK, jwtVerify, SignJWT } from "jose";
 import { createInMemoryRateLimitAdapter } from "./adaptors/in-memory-rate-limit";
+import type { ApiBindings } from "./app";
 
 const accessTokenLifetimeSeconds = 10 * 60;
 const authorizationCodeLifetimeMs = 60_000;

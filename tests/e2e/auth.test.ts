@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("signs in with PKCE, reaches the protected API, and signs out", async ({
+  context,
   page,
   request,
 }, testInfo) => {
@@ -24,6 +25,28 @@ test("signs in with PKCE, reaches the protected API, and signs out", async ({
   await expect(page.getByTestId("api-session")).toHaveText(
     "연결됨: Local Test User",
   );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Object.entries(localStorage).find(([key]) =>
+            key.startsWith("oidc.user:"),
+          )?.[1],
+      ),
+    )
+    .toContain('"access_token"');
+
+  await page.reload();
+  await expect(page.getByTestId("api-session")).toHaveText(
+    "연결됨: Local Test User",
+  );
+
+  const reopened = await context.newPage();
+  await reopened.goto("/");
+  await expect(reopened.getByTestId("api-session")).toHaveText(
+    "연결됨: Local Test User",
+  );
+  await reopened.close();
 
   await expect(page.getByRole("heading", { name: "Beat" })).toBeVisible();
 

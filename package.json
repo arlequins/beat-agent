@@ -53,6 +53,7 @@
     "ui-add": "turbo run ui-add",
     "sst:ws": "node ./scripts/sst-workspace.mjs",
     "test": "pnpm test:runtime && pnpm test:automation && pnpm test:template-init && pnpm architecture:check && turbo run test",
+    "test:coverage": "dotenv -e .env.example -e .env -- vitest run --coverage --config vitest.coverage.config.ts",
     "test:automation": "node --test scripts/validate-deployment-input.test.mjs",
     "test:sst": "node scripts/test-sst.mjs",
     "test:runtime": "node --test scripts/check-runtime.test.mjs",
@@ -75,12 +76,19 @@
     "@axe-core/playwright": "catalog:",
     "@biomejs/biome": "2.5.5",
     "@playwright/test": "catalog:",
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
     "@turbo/gen": "^2.10.5",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "dotenv-cli": "^11.0.0",
     "husky": "^9.1.7",
+    "jsdom": "catalog:",
     "knip": "catalog:",
     "turbo": "^2.10.5",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "description": "A local-first personal assistant for Arlequin."
 }

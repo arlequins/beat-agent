@@ -19,4 +19,17 @@ describe("evaluateRetrievalCase", () => {
       retrievedChunkIds: ["a", "other"],
     });
   });
+
+  it("treats a case without expected citations as fully recalled", () => {
+    expect(
+      evaluateRetrievalCase({
+        evaluationCase: {
+          expectedChunkIds: [],
+          id: "no-citation-case",
+          question: "q",
+        },
+        retrievedChunkIds: [],
+      }).citationRecall,
+    ).toBe(1);
+  });
 });

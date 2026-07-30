@@ -196,8 +196,13 @@ export function AgentChat() {
   );
   const createMemory = useMutation(
     trpc.agent.createMemory.mutationOptions({
-      onSuccess: () => {
+      onSuccess: async () => {
         setMemoryContent("");
+        await queryClient.invalidateQueries({
+          queryKey: trpc.agent.memories.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        });
       },
     }),
   );

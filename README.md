@@ -150,6 +150,7 @@ for provider configuration.
 | `pnpm check` / `pnpm check:fix` | Check or fix Biome formatting and lint rules. |
 | `pnpm typecheck` | Typecheck every workspace. |
 | `pnpm test` | Run unit and contract tests. |
+| `pnpm test:coverage` | Run unit tests and enforce the 50% aggregate coverage gate. |
 | `pnpm test:e2e` | Run isolated PostgreSQL and browser end-to-end tests. |
 | `pnpm db:setup` | Apply committed migrations and pending seeds. |
 | `pnpm turbo gen` | Generate an application, package, or tRPC domain. |
