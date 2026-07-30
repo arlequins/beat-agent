@@ -9,7 +9,7 @@
     "binaries",
     "unresolved"
   ],
-  "ignoreBinaries": ["create-migration", "with-env"],
+  "ignoreBinaries": [],
   "ignoreDependencies": ["k6"],
   "workspaces": {
     ".": {
@@ -19,19 +19,8 @@
         "turbo/generators/config.ts"
       ]
     },
-    "apps/batch": {
-      "entry": [
-        "config/**/*.ts",
-        "lib/functions/**/*.ts",
-        "scripts/**/*.ts",
-        "shared/entry.ts"
-      ]
-    },
     "apps/web": {
       "entry": ["public/sw.js"]
-    },
-    "packages/db-backbone": {
-      "entry": ["scripts/**/*.ts"]
     },
     "packages/ui": {
       "entry": ["postcss.config.js", "src/**/*.stories.tsx"]

@@ -30,8 +30,7 @@
     "@hono/zod-openapi": "catalog:",
     "@scalar/hono-api-reference": "catalog:",
     "@trpc/server": "catalog:",
-    "hono": "catalog:",
-    "jose": "catalog:"
+    "hono": "catalog:"
   },
   "devDependencies": {
     "@arlequins/tsconfig": "workspace:*",

@@ -21,9 +21,6 @@ catalogs:
     '@aws-sdk/client-sqs':
       specifier: ^3.1092.0
       version: 3.1095.0
-    '@aws-sdk/s3-request-presigner':
-      specifier: ^3.1092.0
-      version: 3.1095.0
     '@axe-core/playwright':
       specifier: ^4.12.1
       version: 4.12.1
@@ -268,9 +265,6 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.12.32
-      jose:
-        specifier: 'catalog:'
-        version: 6.2.4
     devDependencies:
       '@arlequins/tsconfig':
         specifier: workspace:*
@@ -707,18 +701,12 @@ importers:
       '@arlequins/auth':
         specifier: workspace:*
         version: link:../auth
-      '@arlequins/db-backbone':
-        specifier: workspace:*
-        version: link:../db-backbone
       '@arlequins/env':
         specifier: workspace:*
         version: link:../env
       '@arlequins/logger':
         specifier: workspace:*
         version: link:../logger
-      '@arlequins/s3-cache':
-        specifier: workspace:*
-        version: link:../s3-cache
       '@arlequins/service':
         specifier: workspace:*
         version: link:../service
@@ -731,15 +719,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
         version: 3.1095.0
-      '@aws-sdk/s3-request-presigner':
-        specifier: 'catalog:'
-        version: 3.1095.0
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.18.0(typescript@5.9.3)
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(postgres@3.4.9)
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
@@ -1100,10 +1082,6 @@ packages:
 
   '@aws-sdk/nested-clients@3.997.38':
     resolution: {integrity: sha512-jQDs+nxnmgo4+WPOmY373HIC8jx4KyYYMYDI74FWrzX3Ba9fYsV0dSA+7PNYNkhRbbRCRLre83tQ31F1ACCHkA==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/s3-request-presigner@3.1095.0':
-    resolution: {integrity: sha512-Xhzt3Okc8UrxOnOR8zE2/aG12g8A9I9f8DVF4LX9k3QVKt0c7d9wT4VcM5/6gfFRhtsflFMGdo49pEqawiAS2Q==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/signature-v4-multi-region@3.996.42':
@@ -7065,15 +7043,6 @@ snapshots:
       '@smithy/core': 3.31.1
       '@smithy/fetch-http-handler': 5.6.13
       '@smithy/node-http-handler': 4.9.13
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/s3-request-presigner@3.1095.0':
-    dependencies:
-      '@aws-sdk/core': 3.977.1
-      '@aws-sdk/signature-v4-multi-region': 3.996.42
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.30.0
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 

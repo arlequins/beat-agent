@@ -54,7 +54,7 @@ pull-request stages and `production` for the manual production workflow.
 Every deployable GitHub Environment also needs the secret
 `DEPLOYMENT_ENV_FILE`. Its value is the complete dotenv payload written to the
 runner's root `.env` immediately before SST runs. Keep OIDC configuration,
-database connection values, CORS origins, and `NEXT_PUBLIC_*` deployment values
+S3 settings, CORS origins, and `NEXT_PUBLIC_*` deployment values
 there; never commit it or print it in workflow logs. GitHub masks the secret,
 and the workflow writes it with owner-only file permissions.
 
@@ -92,13 +92,11 @@ prevent self-review there.
 Preview stages retain the SST name `pr-NUMBER` while using the shared `preview`
 GitHub Environment. This permits a single non-production secret set without
 exposing production configuration to pull-request deployments. The production
-workflow can deploy `all` (API, then web, then batch) or a single application.
+workflow can deploy `all` (API, then web) or a single application.
 
 Production application deployment is intentionally manual and separate from
-Release Please. A generic template cannot know the target database network,
-backup provider, migration window, or desired traffic-shift policy. Follow
-[Database Operations](database-operations.md) before deploying API or batch
-changes, then trigger the production workflow for the required applications.
+Release Please. Review the S3 data policy, active release, OIDC settings, and
+desired traffic-shift policy before triggering the production workflow.
 
 ## Failure Diagnostics
 

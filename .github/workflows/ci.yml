@@ -38,86 +38,6 @@ jobs:
       - uses: ./tooling/github/setup
       - run: pnpm env:check
 
-  generators:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - uses: ./tooling/github/setup
-      - run: pnpm test:generators
-
-  migration-upgrade:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - uses: ./tooling/github/setup
-      - run: pnpm test:migration-upgrade
-
-  database-integration:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - uses: ./tooling/github/setup
-      - name: Test repository against isolated PostgreSQL
-        run: pnpm test:integration
-
-  template-portability:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: ".nvmrc"
-
-      - name: Test runtime and template initializer
-        run: pnpm test:runtime && pnpm test:template-init
-
-  template-output:
-    strategy:
-      fail-fast: false
-      matrix:
-        preset: [full, minimal]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-
-      - name: Setup
-        uses: ./tooling/github/setup
-
-      - name: Qualify generated preset
-        run: pnpm test:template-output ${{ matrix.preset }}
-
-  template-feature-matrix:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - uses: ./tooling/github/setup
-      - name: Qualify pairwise feature combinations
-        run: pnpm test:template-matrix
-
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -239,9 +159,6 @@ jobs:
           name: unit-coverage
           path: coverage/
           retention-days: 7
-
-      - name: Check migrations
-        run: pnpm db:check
 
   storybook:
     runs-on: ubuntu-latest

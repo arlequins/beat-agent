@@ -1,6 +1,9 @@
 packages:
   - apps/*
+  - '!apps/batch'
+  - '!apps/database'
   - packages/*
+  - '!packages/db-backbone'
   - tooling/*
 
 catalog:
