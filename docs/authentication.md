@@ -100,6 +100,12 @@ retain the Vercel CSP in `apps/web/vercel.json`, never render untrusted HTML,
 and treat XSS findings as token-exposure incidents. Use the security center to
 sign out all devices after a suspected compromise.
 
+The installed Beat PWA uses this same OIDC client and browser-storage contract.
+Its service worker caches only the public application shell and immutable static
+assets. It must not cache authentication callbacks, administrator pages, API
+responses, conversations, or counseling content. A newly installed standalone
+PWA can require one initial sign-in before its persistent session is available.
+
 ## Login Abuse Protection and Validation
 
 `POST /oidc/authorize` has a fixed-window limit by both forwarded client IP and
