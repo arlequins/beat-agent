@@ -229,7 +229,7 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Enforce 50% unit coverage
+      - name: Enforce 75% unit coverage
         run: pnpm test:coverage
 
       - name: Upload coverage report

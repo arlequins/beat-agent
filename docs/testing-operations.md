@@ -5,7 +5,7 @@
 For file naming, mocking, and test design rules, see the
 [Testing Policy](conventions/testing.md).
 
-- Unit and contract tests run on every pull request, with an aggregate 50%
+- Unit and contract tests run on every pull request, with an aggregate 75%
   statement, branch, function, and line coverage gate.
 - Migration upgrade tests apply the original schema and then migrate to the current schema in an isolated PostgreSQL container.
 - Testcontainers creates a fresh PostgreSQL instance for repository integration tests, applies every Drizzle migration, and removes the instance after the suite.

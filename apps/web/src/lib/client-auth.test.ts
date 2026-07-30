@@ -32,11 +32,14 @@ vi.mock("~/env", () => ({
 }));
 
 import {
+  finishLogin,
+  finishLogout,
   getOidcSessions,
   getUserManager,
   revokeOidcSessions,
   safeReturnPath,
   startLogin,
+  startLogout,
 } from "./client-auth";
 
 describe("client OIDC", () => {
@@ -76,6 +79,43 @@ describe("client OIDC", () => {
     expect(mocks.manager.signinRedirect).toHaveBeenCalledWith({
       state: { returnTo: "/admin" },
     });
+  });
+
+  it("finishes login and logout callbacks through the OIDC manager", async () => {
+    const user = { access_token: "access-token" };
+    mocks.manager.signinRedirectCallback.mockResolvedValue(user);
+    mocks.manager.removeUser.mockResolvedValue(undefined);
+
+    await expect(finishLogin()).resolves.toBe(user);
+    await expect(finishLogout()).resolves.toBeUndefined();
+
+    expect(mocks.manager.signinRedirectCallback).toHaveBeenCalledOnce();
+    expect(mocks.manager.removeUser).toHaveBeenCalledOnce();
+  });
+
+  it("revokes a refresh token before removing the browser session", async () => {
+    mocks.manager.getUser.mockResolvedValue({ refresh_token: "refresh-token" });
+    mocks.manager.removeUser.mockResolvedValue(undefined);
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    const redirect = vi.fn();
+
+    await startLogout(redirect);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://id.beat.test/revoke",
+      expect.objectContaining({
+        body: new URLSearchParams({
+          client_id: "beat-web",
+          token: "refresh-token",
+          token_type_hint: "refresh_token",
+        }),
+        method: "POST",
+      }),
+    );
+    expect(mocks.manager.removeUser).toHaveBeenCalledOnce();
+    expect(redirect).toHaveBeenCalledWith("https://beat.test/");
   });
 
   it("uses bearer authorization for session review and revocation", async () => {

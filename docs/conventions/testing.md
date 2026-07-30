@@ -28,7 +28,7 @@ Operational details and the flaky-test policy live in
   transactions, or constraints are part of the contract.
 - Apply the existing Biome formatter, linter, and import-order conventions to
   test code.
-- `pnpm test:coverage` enforces at least 50% for statements, branches,
+- `pnpm test:coverage` enforces at least 75% for statements, branches,
   functions, and lines across application, domain, adapter, and testable browser
   logic. Generated declarations, framework entry points, ports, types, and
   presentational primitives are intentionally outside this unit-coverage

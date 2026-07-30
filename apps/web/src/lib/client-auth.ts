@@ -46,7 +46,9 @@ export function finishLogin(): Promise<User> {
   return getUserManager().signinRedirectCallback();
 }
 
-export async function startLogout(): Promise<void> {
+export async function startLogout(
+  redirect: (url: string) => void = (url) => window.location.assign(url),
+): Promise<void> {
   const manager = getUserManager();
   const user = await manager.getUser();
   if (user?.refresh_token) {
@@ -61,7 +63,7 @@ export async function startLogout(): Promise<void> {
     });
   }
   await manager.removeUser();
-  window.location.assign(siteUrl(""));
+  redirect(siteUrl(""));
 }
 
 export async function finishLogout(): Promise<void> {
