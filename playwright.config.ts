@@ -8,11 +8,13 @@ const e2eEnv = Object.fromEntries(
     .filter((line) => line.length > 0 && !line.startsWith("#"))
     .map((line) => {
       const separator = line.indexOf("=");
+      if (separator <= 0) throw new Error(`Invalid .env.e2e line: ${line}`);
       return [line.slice(0, separator), line.slice(separator + 1)];
     }),
 );
 
 Object.assign(process.env, e2eEnv);
+const webServerEnv = { ...process.env, ...e2eEnv };
 
 export default defineConfig({
   expect: {
@@ -44,21 +46,21 @@ export default defineConfig({
   webServer: [
     {
       command: "pnpm --filter @arlequins/oidc-mock start",
-      env: e2eEnv,
+      env: webServerEnv,
       url: "http://localhost:5557/.well-known/openid-configuration",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
     {
       command: "pnpm --filter @arlequins/api start",
-      env: e2eEnv,
+      env: webServerEnv,
       url: "http://localhost:5100/health",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
     {
       command: "pnpm --filter @arlequins/web exec next dev --port 3100",
-      env: e2eEnv,
+      env: webServerEnv,
       url: "http://localhost:3100",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

@@ -1,4 +1,20 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+
+const e2eEnv = {
+  ...process.env,
+  ...Object.fromEntries(
+    readFileSync(".env.e2e", "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("#"))
+      .map((line) => {
+        const separator = line.indexOf("=");
+        if (separator <= 0) throw new Error(`Invalid .env.e2e line: ${line}`);
+        return [line.slice(0, separator), line.slice(separator + 1)];
+      }),
+  ),
+};
 
 const composeArgs = [
   "compose",
@@ -8,7 +24,7 @@ const composeArgs = [
   "compose.e2e.yml",
 ];
 
-function run(command, args, env = process.env) {
+function run(command, args, env = e2eEnv) {
   const result = spawnSync(command, args, {
     env,
     stdio: "inherit",
