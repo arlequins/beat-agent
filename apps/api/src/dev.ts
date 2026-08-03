@@ -18,5 +18,13 @@ const port = serverEnv.API_PORT ?? 5000;
 const logger = createLogger({ service: "api" });
 
 serve({ fetch: app.fetch, port }, (info) => {
-  logger.info("api.started", { port: info.port });
+  logger.info("api.started", {
+    port: info.port,
+    storage: {
+      bucket: serverEnv.S3_AGENT_BUCKET,
+      endpoint: serverEnv.S3_AGENT_ENDPOINT,
+      forcePathStyle: serverEnv.S3_AGENT_FORCE_PATH_STYLE,
+      prefix: serverEnv.S3_AGENT_PREFIX,
+    },
+  });
 });

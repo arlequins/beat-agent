@@ -6,7 +6,6 @@ const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const sstPackages = [
   "@arlequins/web",
   "@arlequins/api",
-  "@arlequins/batch",
   "@arlequins/sst-bootstrap",
 ];
 

@@ -12,7 +12,9 @@ apps/api/src/app.ts
                  -> port <- adapter
 ```
 
-The Hono app owns HTTP concerns. tRPC owns typed API contracts and request middleware. Services own application behavior and receive concrete I/O dependencies during composition. Drizzle owns persistence.
+The Hono app owns HTTP concerns. tRPC owns typed API contracts and request
+middleware. Services own application behavior and receive concrete I/O
+dependencies during composition. S3 adapters own persistence.
 
 ## Layer Rules
 
@@ -20,7 +22,7 @@ The Hono app owns HTTP concerns. tRPC owns typed API contracts and request middl
 
 - Mount tRPC through the fetch adapter in `apps/api/src/app.ts`.
 - Keep CORS, request IDs, structured request logging, security headers, health checks, and ordinary HTTP endpoints here.
-- Do not place domain behavior or Drizzle queries in Hono handlers.
+- Do not place domain behavior or S3 SDK calls in Hono handlers.
 
 ### tRPC Context
 
@@ -28,7 +30,7 @@ The Hono app owns HTTP concerns. tRPC owns typed API contracts and request middl
 - Resolve authentication once per request.
 - Pass the request-scoped logger from Hono into tRPC and bind a component name for each service.
 - Expose application operations through `ctx.services`.
-- Keep concrete database construction out of routers.
+- Keep concrete storage construction out of routers.
 
 ```ts
 export const createTRPCContext = async (opts: {
@@ -52,7 +54,7 @@ export const createTRPCContext = async (opts: {
 - Keep routers thin: validate input, select authorization middleware, call one service operation, and return the result.
 - Use `publicProcedure` for public operations and `protectedProcedure` for authenticated operations.
 - Define routers with `satisfies TRPCRouterRecord`.
-- Do not import a database client, Drizzle schema, or global service singleton.
+- Do not import an S3 client, storage adapter, or global service singleton.
 
 ```ts
 export const postRouter = {
@@ -67,16 +69,19 @@ export const postRouter = {
 ### Services
 
 - Define service factories in `packages/service`.
-- Pass the database or an explicit port and a contextual `Logger` into the factory.
+- Pass an explicit storage port and contextual `Logger` into the factory.
 - Keep framework-specific request and response types out of service code.
 - Export factories and types with named exports.
 
 ```ts
-export function createPostService(database: Database, logger: Logger) {
+export function createConversationService(
+  repository: ConversationRepository,
+  logger: Logger,
+) {
   return {
-    listPosts: () => {
-      logger.debug("post.list");
-      return database.query.Post.findMany();
+    list: () => {
+      logger.debug("conversation.list");
+      return repository.list();
     },
   };
 }
@@ -117,13 +122,16 @@ const itemRouter = {
 
 ## Browser Boundary
 
-Client Components must import from `@arlequins/trpc/client`, never `@arlequins/trpc`. The server entry imports authentication, Drizzle, and Node-only database code; the client entry contains only constants, error helpers, and types.
+Client Components must import from `@arlequins/trpc/client`, never
+`@arlequins/trpc`. The server entry imports authentication and Node-only
+storage adapters; the client entry contains only constants, error helpers, and
+types.
 
 ## Common Mistakes
 
 | Mistake | Correct approach |
 | --- | --- |
-| Writing Drizzle queries in a router | Add the operation to a dependency-injected service or adapter. |
+| Calling the S3 SDK in a router | Add the operation to a dependency-injected service or adapter. |
 | Calling an external API directly from a router | Inject an external API port into the service. |
 | Importing a global service singleton | Compose the service in the request context and use `ctx.services`. |
 | Importing `@arlequins/trpc` in a Client Component | Import browser-safe values and types from `@arlequins/trpc/client`. |

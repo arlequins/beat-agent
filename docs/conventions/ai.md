@@ -61,7 +61,7 @@ Always report verification results. If a check cannot be run, explain why.
 - Keep routers thin. They should define procedures, validate input and output, and call usecase wrappers.
 - Put business logic in `lib/services/{domain}`.
 - Put I/O interfaces in `lib/services/ports`.
-- Put Drizzle and external API implementations in `lib/adaptors`.
+- Put S3 and external API implementations in adapter directories.
 - Compose production dependencies in `lib/usecases/composition`.
 - Add explicit Zod outputs for complex procedure results.
 

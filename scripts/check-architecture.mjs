@@ -8,13 +8,7 @@ const sourceExtensions = new Set([".ts", ".tsx", ".mts", ".mjs"]);
 const boundaries = [
   {
     directory: "packages/service/src",
-    forbidden: [
-      /^@arlequins\//,
-      /^@aws-sdk\//,
-      /^@trpc\//,
-      /^drizzle-orm(?:\/|$)/,
-      /^hono(?:\/|$)/,
-    ],
+    forbidden: [/^@arlequins\//, /^@aws-sdk\//, /^@trpc\//, /^hono(?:\/|$)/],
     reason: "application and domain layers cannot depend on infrastructure",
   },
   {
@@ -31,18 +25,11 @@ const boundaries = [
   {
     directory: "packages/trpc/src/router",
     forbidden: [
-      /^@arlequins\/db-/,
       /^@arlequins\/env(?:\/|$)/,
       /^@arlequins\/s3-cache(?:\/|$)/,
       /^@aws-sdk\//,
-      /^drizzle-orm(?:\/|$)/,
     ],
     reason: "transport routers must call use cases instead of infrastructure",
-  },
-  {
-    directory: "apps/batch/lib/usecases",
-    forbidden: [/^@arlequins\/db-/, /^@aws-sdk\//, /^drizzle-orm(?:\/|$)/],
-    reason: "batch use cases receive infrastructure through ports",
   },
 ];
 

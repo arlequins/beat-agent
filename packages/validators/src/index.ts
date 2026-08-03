@@ -104,3 +104,6 @@ export const createEvaluationCaseInputSchema = workspaceScopeInputSchema.extend(
     question: z.string().trim().min(1).max(10_000),
   },
 );
+export const publishReleaseInputSchema = workspaceScopeInputSchema.extend({
+  minimumCitationRecall: z.number().min(0).max(1).default(0.75),
+});

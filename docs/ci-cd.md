@@ -8,7 +8,7 @@ release automation. Security policy and AWS trust configuration remain in
 
 | Workflow | Trigger | Responsibility |
 | --- | --- | --- |
-| `CI` | pull requests, `main`, merge queue | Formatting, linting, workflow validation, production builds, types, tests, generated-template qualification, Storybook, and E2E |
+| `CI` | pull requests, `main`, merge queue | Formatting, linting, workflow validation, production builds, types, tests, Storybook, and E2E |
 | `PR title` | pull request title changes | Conventional Commit validation for squash merges |
 | `Security` | pull requests, merge queue, `main`, `develop`, weekly | Dependency review, CodeQL, secret scanning, license policy, and SBOM |
 | `Preview deployment` | same-repository pull requests | Deploy or remove isolated `pr-NUMBER` API and web stages |
@@ -16,13 +16,11 @@ release automation. Security policy and AWS trust configuration remain in
 | `Release` | successful `CI` on `main`, manual | Maintain the Release Please PR and create version tags |
 | `Publish tagged release` | `vX.Y.Z` tag push | Re-verify the tagged source and create the GitHub Release |
 | `AWS sandbox smoke` | manual, weekly | Exercise Function URL and API Gateway sandbox endpoints |
-| `Quickstart deployment qualification` | manual | Rename, validate, deploy, and remove a fresh full template |
 | `Baseline load test` | manual | Run the k6 baseline against an approved HTTPS target |
 
 CI jobs use the shared `tooling/github/setup` action. It reads the pinned Node
 and pnpm versions, restores the pnpm store cache, and performs a frozen-lockfile
-install. Generated-template jobs may explicitly opt out after intentionally
-rewriting package metadata.
+install.
 
 ## Required Repository Settings
 
@@ -45,7 +43,6 @@ pull-request stages and `production` for the manual production workflow.
 | --- | --- |
 | `AWS_DEPLOY_REGION` | SST provider and GitHub OIDC credential configuration for that environment |
 | `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC role for preview deploy/cleanup or production deployment |
-| `AWS_QUICKSTART_ROLE_ARN` | Generated-template cloud qualification |
 | `AWS_SMOKE_FUNCTION_URL` | Scheduled Function URL smoke test |
 | `AWS_SMOKE_GATEWAY_URL` | Scheduled API Gateway smoke test |
 | `LOAD_TEST_API_URL` | k6 baseline |
@@ -54,7 +51,7 @@ pull-request stages and `production` for the manual production workflow.
 Every deployable GitHub Environment also needs the secret
 `DEPLOYMENT_ENV_FILE`. Its value is the complete dotenv payload written to the
 runner's root `.env` immediately before SST runs. Keep OIDC configuration,
-database connection values, CORS origins, and `NEXT_PUBLIC_*` deployment values
+S3 settings, CORS origins, and `NEXT_PUBLIC_*` deployment values
 there; never commit it or print it in workflow logs. GitHub masks the secret,
 and the workflow writes it with owner-only file permissions.
 
@@ -92,13 +89,11 @@ prevent self-review there.
 Preview stages retain the SST name `pr-NUMBER` while using the shared `preview`
 GitHub Environment. This permits a single non-production secret set without
 exposing production configuration to pull-request deployments. The production
-workflow can deploy `all` (API, then web, then batch) or a single application.
+workflow can deploy `all` (API, then web) or a single application.
 
 Production application deployment is intentionally manual and separate from
-Release Please. A generic template cannot know the target database network,
-backup provider, migration window, or desired traffic-shift policy. Follow
-[Database Operations](database-operations.md) before deploying API or batch
-changes, then trigger the production workflow for the required applications.
+Release Please. Review the S3 data policy, active release, OIDC settings, and
+desired traffic-shift policy before triggering the production workflow.
 
 ## Failure Diagnostics
 

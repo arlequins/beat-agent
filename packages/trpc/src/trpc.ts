@@ -21,7 +21,7 @@ import { formatTrpcErrorShape } from "./errors";
  *
  * This section defines the "contexts" that are available in the backend API.
  *
- * These allow you to access things when processing a request, like the database, the session, etc.
+ * These allow access to request-scoped services, storage, and the session.
  *
  * This helper generates the "internals" for a tRPC context. The API handler and RSC clients each
  * wrap this and provides the required context.

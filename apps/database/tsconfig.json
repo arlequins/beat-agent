@@ -1,7 +1,0 @@
-{
-  "extends": "@arlequins/tsconfig/base.json",
-  "compilerOptions": {
-    "noEmit": true
-  },
-  "include": ["sst.config.ts", "sst-globals.d.ts"]
-}

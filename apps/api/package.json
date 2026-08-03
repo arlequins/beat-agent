@@ -13,24 +13,23 @@
     "sst:remove": "pnpm with-env sst remove",
     "format": "biome format .",
     "lint": "biome lint .",
-    "test": "pnpm with-env vitest run",
+    "test": "dotenv -e ../../.env.example -e ../../.env -- vitest run",
     "typecheck": "tsc --noEmit",
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
-    "@arlequins/db-backbone": "workspace:*",
     "@arlequins/env": "workspace:*",
     "@arlequins/logger": "workspace:*",
     "@arlequins/service": "workspace:*",
     "@arlequins/trpc": "workspace:*",
     "@arlequins/validators": "workspace:*",
     "@aws-sdk/client-eventbridge": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
     "@aws-sdk/client-scheduler": "catalog:",
     "@aws-sdk/client-sqs": "catalog:",
     "@hono/zod-openapi": "catalog:",
     "@scalar/hono-api-reference": "catalog:",
     "@trpc/server": "catalog:",
-    "drizzle-orm": "catalog:",
     "hono": "catalog:"
   },
   "devDependencies": {

@@ -1,4 +1,20 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+
+const e2eEnv = {
+  ...process.env,
+  ...Object.fromEntries(
+    readFileSync(".env.e2e", "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("#"))
+      .map((line) => {
+        const separator = line.indexOf("=");
+        if (separator <= 0) throw new Error(`Invalid .env.e2e line: ${line}`);
+        return [line.slice(0, separator), line.slice(separator + 1)];
+      }),
+  ),
+};
 
 const composeArgs = [
   "compose",
@@ -8,7 +24,7 @@ const composeArgs = [
   "compose.e2e.yml",
 ];
 
-function run(command, args, env = process.env) {
+function run(command, args, env = e2eEnv) {
   const result = spawnSync(command, args, {
     env,
     stdio: "inherit",
@@ -20,15 +36,9 @@ function run(command, args, env = process.env) {
 }
 
 try {
-  run("docker", [...composeArgs, "up", "-d", "--wait"]);
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:migrate"]);
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:seed"], {
-    ...process.env,
-    SEED_SAMPLE_DATA: "false",
-    SST_STAGE: "production",
-  });
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:seed"]);
-  run("pnpm", ["exec", "dotenv", "-e", ".env.e2e", "--", "pnpm", "db:seed"]);
+  run("pnpm", ["turbo", "run", "build", "--filter=@arlequins/api..."]);
+  run("docker", [...composeArgs, "up", "-d", "--wait", "minio-e2e"]);
+  run("docker", [...composeArgs, "run", "--rm", "minio-init"]);
   run("pnpm", ["exec", "playwright", "test", ...process.argv.slice(2)]);
 } finally {
   run("docker", [...composeArgs, "down", "--volumes"]);

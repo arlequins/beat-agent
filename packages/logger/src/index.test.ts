@@ -59,7 +59,7 @@ describe("createTelemetry", () => {
     expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({
       RequestCount: 1,
       stage: "test",
-      _aws: { CloudWatchMetrics: [{ Namespace: "Template/Application" }] },
+      _aws: { CloudWatchMetrics: [{ Namespace: "Beat/Application" }] },
     });
   });
 });

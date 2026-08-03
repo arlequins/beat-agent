@@ -39,23 +39,114 @@ export default $config({
       throttleRateLimit: serverEnv.API_THROTTLE_RATE_LIMIT,
       wafEnabled: serverEnv.API_WAF_ENABLED,
     });
-    const cacheBucket = new sst.aws.Bucket("Cache");
-    const uploadOrigins = (
-      serverEnv.API_CORS_ORIGINS ?? "http://localhost:3000"
-    )
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean);
-    const uploadBucket = new sst.aws.Bucket("Uploads", {
-      cors: {
-        allowHeaders: ["content-type"],
-        allowMethods: ["PUT"],
-        allowOrigins: uploadOrigins,
+    const dataBucket = new aws.s3.BucketV2("AgentData", {
+      tags: {
+        Application: "beat-agent",
+        DataClassification: "sensitive-personal",
+        Stage: $app.stage,
       },
+    });
+    new aws.s3.BucketPublicAccessBlock("AgentDataPublicAccess", {
+      bucket: dataBucket.id,
+      blockPublicAcls: true,
+      blockPublicPolicy: true,
+      ignorePublicAcls: true,
+      restrictPublicBuckets: true,
+    });
+    new aws.s3.BucketOwnershipControls("AgentDataOwnership", {
+      bucket: dataBucket.id,
+      rule: { objectOwnership: "BucketOwnerEnforced" },
+    });
+    new aws.s3.BucketVersioningV2("AgentDataVersioning", {
+      bucket: dataBucket.id,
+      versioningConfiguration: { status: "Enabled" },
+    });
+    new aws.s3.BucketServerSideEncryptionConfigurationV2(
+      "AgentDataEncryption",
+      {
+        bucket: dataBucket.id,
+        rules: [
+          {
+            applyServerSideEncryptionByDefault: { sseAlgorithm: "AES256" },
+          },
+        ],
+      },
+    );
+    new aws.s3.BucketLifecycleConfigurationV2("AgentDataLifecycle", {
+      bucket: dataBucket.id,
+      rules: [
+        {
+          abortIncompleteMultipartUpload: { daysAfterInitiation: 7 },
+          filter: { prefix: "" },
+          id: "control-version-cost",
+          noncurrentVersionExpiration: {
+            newerNoncurrentVersions: 3,
+            noncurrentDays: 90,
+          },
+          status: "Enabled",
+        },
+      ],
+    });
+    const dataPolicy = aws.iam.getPolicyDocumentOutput({
+      statements: [
+        {
+          actions: ["s3:*"],
+          conditions: [
+            {
+              test: "Bool",
+              values: ["false"],
+              variable: "aws:SecureTransport",
+            },
+          ],
+          effect: "Deny",
+          principals: [{ identifiers: ["*"], type: "*" }],
+          resources: [dataBucket.arn, $interpolate`${dataBucket.arn}/*`],
+          sid: "DenyInsecureTransport",
+        },
+        {
+          actions: ["s3:PutObject"],
+          conditions: [
+            {
+              test: "Null",
+              values: ["true"],
+              variable: "s3:if-match",
+            },
+            {
+              test: "Null",
+              values: ["true"],
+              variable: "s3:if-none-match",
+            },
+          ],
+          effect: "Deny",
+          principals: [{ identifiers: ["*"], type: "*" }],
+          resources: [$interpolate`${dataBucket.arn}/*`],
+          sid: "RequireConditionalWrites",
+        },
+      ],
+    });
+    new aws.s3.BucketPolicy("AgentDataPolicy", {
+      bucket: dataBucket.id,
+      policy: dataPolicy.json,
+    });
+
+    const deadLetterQueue = new aws.sqs.Queue("AgentJobsDeadLetter", {
+      messageRetentionSeconds: 1_209_600,
+      name: `${$app.name}-${$app.stage}-jobs-dlq.fifo`,
+      fifoQueue: true,
+    });
+    const jobsQueue = new aws.sqs.Queue("AgentJobs", {
+      contentBasedDeduplication: true,
+      fifoQueue: true,
+      messageRetentionSeconds: 345_600,
+      name: `${$app.name}-${$app.stage}-jobs.fifo`,
+      redrivePolicy: $jsonStringify({
+        deadLetterTargetArn: deadLetterQueue.arn,
+        maxReceiveCount: 3,
+      }),
+      visibilityTimeoutSeconds: 900,
     });
     const handler = {
       handler: "src/lambda.handler",
-      link: [cacheBucket, uploadBucket],
       ...(vpc
         ? {
             vpc: {
@@ -66,18 +157,39 @@ export default $config({
         : {}),
       environment: {
         ...LambdaEnvironment,
-        S3_CACHE_BUCKET: cacheBucket.name,
-        S3_CACHE_PREFIX: `${$app.name}/${$app.stage}`,
-        S3_UPLOAD_BUCKET: uploadBucket.name,
-        S3_UPLOAD_PREFIX: `${$app.name}/${$app.stage}`,
+        AGENT_JOBS_QUEUE_URL: jobsQueue.url,
+        S3_AGENT_BUCKET: dataBucket.bucket,
+        S3_AGENT_PREFIX: $app.stage,
         SST_STAGE: $app.stage,
       },
+      permissions: [
+        {
+          actions: ["s3:ListBucket"],
+          resources: [dataBucket.arn],
+        },
+        {
+          actions: ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"],
+          resources: [$interpolate`${dataBucket.arn}/*`],
+        },
+        {
+          actions: ["sqs:SendMessage"],
+          resources: [jobsQueue.arn],
+        },
+        ...(serverEnv.BEDROCK_MODEL_ARN
+          ? [
+              {
+                actions: ["bedrock:InvokeModelWithResponseStream"],
+                resources: [serverEnv.BEDROCK_MODEL_ARN],
+              },
+            ]
+          : []),
+      ],
     };
     const alarmActions = serverEnv.ALERT_TOPIC_ARN
       ? [serverEnv.ALERT_TOPIC_ARN]
       : [];
     const metric = (name: string) => ({
-      namespace: "Template/Api",
+      namespace: "Beat/Api",
       metricName: name,
       dimensions: { stage: $app.stage },
       period: 300,
@@ -110,7 +222,7 @@ export default $config({
               region,
               title: "API requests, errors, latency, and cold starts",
               metrics: [
-                ["Template/Api", "RequestCount", "stage", $app.stage],
+                ["Beat/Api", "RequestCount", "stage", $app.stage],
                 [".", "ServerErrorCount", ".", "."],
                 [".", "RequestDuration", ".", ".", { stat: "Average" }],
                 [".", "ColdStart", ".", "."],

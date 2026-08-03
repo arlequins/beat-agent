@@ -5,10 +5,16 @@
 For file naming, mocking, and test design rules, see the
 [Testing Policy](conventions/testing.md).
 
-- Unit and contract tests run on every pull request.
-- Migration upgrade tests apply the original schema and then migrate to the current schema in an isolated PostgreSQL container.
-- Testcontainers creates a fresh PostgreSQL instance for repository integration tests, applies every Drizzle migration, and removes the instance after the suite.
-- Playwright runs the OIDC flow and accessibility checks on desktop and mobile Chromium.
+- Unit and contract tests run on every pull request, with an aggregate 75%
+  statement, branch, function, and line coverage gate.
+- Repository tests cover immutable events, ETag conflicts, leases, tombstones,
+  versioned releases, and active-release switching with deterministic storage
+  doubles.
+- Playwright creates an isolated MinIO bucket, exercises the real S3-compatible
+  adapter, and removes the local stack after the suite.
+- Playwright runs OIDC login persistence, workspace/document/memory journeys,
+  PWA metadata and private-route cache boundaries, visual regression, and
+  accessibility checks on desktop and mobile Chromium.
 - AWS sandbox smoke tests validate both deployment presets on a schedule and on demand.
 - k6 baseline load tests are manual and target a dedicated non-production endpoint.
 

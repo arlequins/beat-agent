@@ -32,7 +32,7 @@ describe("API app", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      checks: { database: "ok" },
+      checks: { storage: "ok" },
       status: "ok",
     });
   });
@@ -46,7 +46,7 @@ describe("API app", () => {
         sink: (record) => records.push(record),
       }),
       readinessCheck: async () => {
-        throw new Error("database unavailable");
+        throw new Error("storage unavailable");
       },
     });
 
@@ -54,7 +54,7 @@ describe("API app", () => {
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({
-      checks: { database: "unavailable" },
+      checks: { storage: "unavailable" },
       status: "unavailable",
     });
     expect(records).toContainEqual(

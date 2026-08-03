@@ -1,5 +1,5 @@
 export const siteConfig = {
-  description: "Arlequin을 위한 로컬 우선 개인 비서 Beat.",
+  description: "Arlequin을 위한 개인 비서 Beat.",
   name: "Beat",
   shortName: "BT",
   user: {

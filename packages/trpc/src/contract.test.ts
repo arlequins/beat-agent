@@ -16,30 +16,13 @@ function procedureNames(router: unknown) {
 describe("public tRPC contract", () => {
   it("keeps top-level domain routers stable", () => {
     const names = procedureNames(AppRouter);
-    expect(names).toEqual(expect.arrayContaining(["agent", "file", "post"]));
-    if ("auth" in AppRouter._def.record) expect(names).toContain("auth");
-  });
-
-  it("keeps generic file procedures stable", () => {
-    expect(procedureNames(AppRouter._def.record.file)).toEqual([
-      "createUpload",
-    ]);
-  });
-
-  it("keeps example procedures stable", () => {
-    if ("auth" in AppRouter._def.record)
-      expect(procedureNames(AppRouter._def.record.auth)).toEqual(["me"]);
-    expect(procedureNames(AppRouter._def.record.post)).toEqual([
-      "all",
-      "byId",
-      "create",
-      "delete",
-      "update",
-    ]);
+    expect(names).toEqual(["agent", "auth"]);
+    expect(procedureNames(AppRouter._def.record.auth)).toEqual(["me"]);
   });
 
   it("publishes workspace-scoped agent procedures", () => {
     expect(procedureNames(AppRouter._def.record.agent)).toEqual([
+      "activeRelease",
       "addMessage",
       "addWorkspaceMember",
       "archiveConversation",
@@ -61,6 +44,7 @@ describe("public tRPC contract", () => {
       "memories",
       "messageCitations",
       "messages",
+      "publishRelease",
       "purgeExpiredMemories",
       "reviewMemory",
       "runEvaluation",
