@@ -1,0 +1,69 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules
+/backups/
+.pnp
+.pnp.js
+
+# testing
+coverage
+playwright-report
+test-results
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# sst / open-next
+.sst/
+.open-next/
+
+# nitro
+.nitro/
+.output/
+
+# expo
+.expo/
+expo-env.d.ts
+apps/expo/.gitignore
+apps/expo/ios
+apps/expo/android
+
+# production
+build
+storybook-static
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# localhost env files
+.env
+.env*.local
+.env.localhost
+.env.develop
+.env.production
+
+# vercel
+.vercel
+
+# typescript
+dist/
+.cache
+
+# turbo
+.turbo
+
+# tanstack
+.tanstack
+
+# pnpm
+.pnpm-store

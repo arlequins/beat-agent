@@ -1,0 +1,44 @@
+{
+  "name": "@arlequins/api",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm with-env tsx watch src/dev.ts",
+    "build": "tsc --noEmit",
+    "start": "pnpm with-env tsx src/dev.ts",
+    "sst:dev": "pnpm with-env sst dev",
+    "sst:deploy": "pnpm with-env sst deploy",
+    "sst:install": "pnpm with-env sst install",
+    "sst:remove": "pnpm with-env sst remove",
+    "format": "biome format .",
+    "lint": "biome lint .",
+    "test": "dotenv -e ../../.env.example -e ../../.env -- vitest run",
+    "typecheck": "tsc --noEmit",
+    "with-env": "dotenv -e ../../.env --"
+  },
+  "dependencies": {
+    "@arlequins/env": "workspace:*",
+    "@arlequins/logger": "workspace:*",
+    "@arlequins/service": "workspace:*",
+    "@arlequins/trpc": "workspace:*",
+    "@arlequins/validators": "workspace:*",
+    "@aws-sdk/client-eventbridge": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-scheduler": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@hono/zod-openapi": "catalog:",
+    "@scalar/hono-api-reference": "catalog:",
+    "@trpc/server": "catalog:",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "@hono/node-server": "catalog:",
+    "@types/node": "catalog:",
+    "sst": "4.17.1",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

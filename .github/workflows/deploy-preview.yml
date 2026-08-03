@@ -1,0 +1,65 @@
+name: Preview deployment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-api:
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.PREVIEW_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: api
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
+      operation: deploy
+
+  deploy-web:
+    needs: deploy-api
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.deploy-api.result == 'success'
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: web
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
+      operation: deploy
+
+  remove-web:
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.PREVIEW_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: web
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
+      operation: remove
+
+  remove-api:
+    needs: remove-web
+    if: >-
+      always() &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.remove-web.result == 'success'
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      application: api
+      github_environment: preview
+      stage: pr-${{ github.event.pull_request.number }}
+      operation: remove

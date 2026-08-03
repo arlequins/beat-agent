@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeOnlyApprovedBedrockModel",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": "arn:aws:bedrock:${AWS_REGION}::foundation-model/${BEDROCK_MODEL_ID}"
+    },
+    {
+      "Sid": "ReadOnlyApprovedKnowledgePrefix",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::${KNOWLEDGE_BUCKET}/${KNOWLEDGE_PREFIX}/*"
+    },
+    {
+      "Sid": "ReadOnlyKnowledgeBucketLocation",
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::${KNOWLEDGE_BUCKET}"
+    },
+    {
+      "Sid": "OnlyConfiguredVectorIndex",
+      "Effect": "Allow",
+      "Action": [
+        "s3vectors:DeleteVectors",
+        "s3vectors:GetIndex",
+        "s3vectors:PutVectors",
+        "s3vectors:QueryVectors"
+      ],
+      "Resource": "arn:aws:s3vectors:${AWS_REGION}:${AWS_ACCOUNT_ID}:bucket/${S3_VECTOR_BUCKET}/index/${S3_VECTOR_INDEX}"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@arlequins/tsconfig/compiled-package.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

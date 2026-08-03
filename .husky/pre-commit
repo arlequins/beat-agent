@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+set -e
+
+echo "pre-commit: biome check:fix"
+pnpm check:fix
+
+# Include auto-fixes in this commit (tracked files only)
+git add -u
+
+echo "pre-commit: typecheck"
+pnpm typecheck

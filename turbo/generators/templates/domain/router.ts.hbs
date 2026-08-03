@@ -1,0 +1,14 @@
+import type { TRPCRouterRecord } from "@trpc/server";
+import { z } from "zod/v4";
+
+import { publicProcedure } from "../trpc";
+import { run{{ pascalCase name }} } from "../usecases/{{ name }}";
+
+const messageSchema = z.object({ message: z.string().min(1) });
+
+export const {{ camelCase name }}Router = {
+  execute: publicProcedure
+    .input(messageSchema)
+    .output(messageSchema)
+    .mutation(({ input }) => run{{ pascalCase name }}(input)),
+} satisfies TRPCRouterRecord;

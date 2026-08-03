@@ -1,0 +1,21 @@
+{
+  "name": "@arlequins/sst-bootstrap",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "env:pull": "node ./scripts/pull-secret-env.mjs",
+    "env:push": "node ./scripts/push-secret-env.mjs",
+    "sst:install": "pnpm with-env sst install",
+    "test": "node --test ./scripts/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "with-env": "dotenv -e ../../.env --"
+  },
+  "devDependencies": {
+    "@arlequins/env": "workspace:*",
+    "@arlequins/tsconfig": "workspace:*",
+    "@aws-sdk/client-secrets-manager": "^3.1090.0",
+    "@types/node": "catalog:",
+    "sst": "4.17.1",
+    "typescript": "catalog:"
+  }
+}

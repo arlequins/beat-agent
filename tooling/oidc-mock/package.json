@@ -1,0 +1,24 @@
+{
+  "name": "@arlequins/oidc-mock",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "pnpm with-env tsx watch src/server.ts",
+    "format": "biome format .",
+    "lint": "biome lint .",
+    "start": "pnpm with-env tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "with-env": "dotenv -e ../../.env --"
+  },
+  "dependencies": {
+    "oidc-provider": "catalog:"
+  },
+  "devDependencies": {
+    "@arlequins/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/oidc-provider": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}

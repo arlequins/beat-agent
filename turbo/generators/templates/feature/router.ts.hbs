@@ -1,0 +1,13 @@
+import type { TRPCRouterRecord } from "@trpc/server";
+import { z } from "zod/v4";
+import { {{ camelCase name }}Service } from "../composition/{{ name }}";
+import { publicProcedure } from "../trpc";
+
+const messageSchema = z.object({ message: z.string().min(1) });
+
+export const {{ camelCase name }}Router = {
+  execute: publicProcedure
+    .input(messageSchema)
+    .output(messageSchema)
+    .{{ procedure kind }}(({ input }) => {{ camelCase name }}Service.execute(input)),
+} satisfies TRPCRouterRecord;

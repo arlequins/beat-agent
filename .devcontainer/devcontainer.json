@@ -1,0 +1,21 @@
+{
+  "name": "Next Hono SST Template",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "forwardPorts": [3000, 5000, 55433, 5556],
+  "portsAttributes": {
+    "3000": { "label": "Next.js" },
+    "5000": { "label": "Hono API" },
+    "55433": { "label": "PostgreSQL" },
+    "5556": { "label": "OIDC provider" }
+  },
+  "postCreateCommand": "corepack enable && pnpm install",
+  "remoteUser": "node",
+  "customizations": {
+    "vscode": {
+      "extensions": ["biomejs.biome", "ms-azuretools.vscode-docker"]
+    }
+  }
+}

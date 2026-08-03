@@ -1,0 +1,77 @@
+name: Deploy SST application
+
+on:
+  workflow_call:
+    inputs:
+      application:
+        description: Workspace to deploy
+        required: true
+        type: string
+      github_environment:
+        description: GitHub Environment that provides deployment variables and secrets
+        required: true
+        type: string
+      stage:
+        description: SST stage
+        required: true
+        type: string
+      operation:
+        description: deploy or remove
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    timeout-minutes: 30
+    concurrency:
+      group: sst-${{ inputs.stage }}-${{ inputs.application }}
+      cancel-in-progress: false
+    env:
+      DEPLOY_STAGE: ${{ inputs.stage }}
+      SST_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+
+      - name: Validate deployment inputs
+        env:
+          DEPLOY_APPLICATION: ${{ inputs.application }}
+          DEPLOY_OPERATION: ${{ inputs.operation }}
+          DEPLOY_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+          DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          DEPLOY_STAGE: ${{ inputs.stage }}
+        run: node scripts/validate-deployment-input.mjs
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_DEPLOY_REGION }}
+
+      - name: Write GitHub Environment values
+        env:
+          DEPLOYMENT_ENV_FILE: ${{ secrets.DEPLOYMENT_ENV_FILE }}
+        run: |
+          if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
+            echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
+
+      - name: Run SST operation
+        env:
+          DEPLOY_APPLICATION: ${{ inputs.application }}
+          DEPLOY_OPERATION: ${{ inputs.operation }}
+          DEPLOY_STAGE: ${{ inputs.stage }}
+        run: >-
+          pnpm sst:ws "$DEPLOY_APPLICATION" "$DEPLOY_OPERATION"
+          -- --stage "$DEPLOY_STAGE"

@@ -1,0 +1,8 @@
+import { create{{ pascalCase name }}Service } from "../../services/{{ name }}";
+import type { {{ pascalCase name }}Input } from "../../types/{{ name }}";
+import { default{{ pascalCase name }}Deps } from "../composition/{{ name }}-deps";
+
+const service = create{{ pascalCase name }}Service(default{{ pascalCase name }}Deps);
+
+export const run{{ pascalCase name }} = (input: {{ pascalCase name }}Input) =>
+  service.execute(input);

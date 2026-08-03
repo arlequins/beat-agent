@@ -1,0 +1,6 @@
+import { create{{ pascalCase name }}Service } from "@arlequins/service";
+import { {{ camelCase name }}Adaptor } from "../adaptors/{{ name }}";
+
+export const {{ camelCase name }}Service = create{{ pascalCase name }}Service({
+  {{ camelCase name }}: {{ camelCase name }}Adaptor,
+});

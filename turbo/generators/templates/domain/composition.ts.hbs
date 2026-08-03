@@ -1,0 +1,6 @@
+import { {{ camelCase name }}Adaptor } from "../../adaptors/{{ name }}";
+import type { {{ pascalCase name }}Deps } from "../../services/{{ name }}";
+
+export const default{{ pascalCase name }}Deps: {{ pascalCase name }}Deps = {
+  {{ camelCase name }}: {{ camelCase name }}Adaptor,
+};
