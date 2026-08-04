@@ -37,4 +37,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ steps.release-please.outputs.tag_name }}
-        run: gh workflow run publish-release.yml --ref "$TAG_NAME"
+        run: gh workflow run publish-release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG_NAME"
