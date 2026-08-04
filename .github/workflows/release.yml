@@ -12,6 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: write
   issues: write
   pull-requests: write
@@ -25,8 +26,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Create or update release
+        id: release-please
         uses: googleapis/release-please-action@v5
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      - name: Verify newly created release tag
+        if: ${{ steps.release-please.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release-please.outputs.tag_name }}
+        run: gh workflow run publish-release.yml --ref "$TAG_NAME"

@@ -3,6 +3,7 @@ name: Publish tagged release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 concurrency:
   group: publish-release-${{ github.ref_name }}
