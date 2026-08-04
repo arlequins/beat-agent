@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0](https://github.com/arlequins/beat-agent/compare/v0.3.0...v0.4.0) (2026-08-04)
+
+
+### Features
+
+* establish Beat local assistant ([#1](https://github.com/arlequins/beat-agent/issues/1)) ([a2be7ec](https://github.com/arlequins/beat-agent/commit/a2be7ec1ae39588763f4ebfc1ccbce84c156a2b3))
+
 ## [0.3.0](https://github.com/arlequins/beat-agent/compare/v0.2.0...v0.3.0) (2026-07-26)
 
 
