@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.2](https://github.com/arlequins/beat-agent/compare/v0.4.1...v0.4.2) (2026-08-04)
+
+
+### Bug Fixes
+
+* dispatch release verification with repository context ([#6](https://github.com/arlequins/beat-agent/issues/6)) ([01b82de](https://github.com/arlequins/beat-agent/commit/01b82dea8171655422a5fff96a04011d81038535))
+
 ## [0.4.1](https://github.com/arlequins/beat-agent/compare/v0.4.0...v0.4.1) (2026-08-04)
 
 
