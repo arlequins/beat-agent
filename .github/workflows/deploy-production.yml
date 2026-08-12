@@ -58,6 +58,8 @@ jobs:
           fi
           umask 077
           printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
+      - name: Build API workspace dependencies
+        run: pnpm turbo run build --filter=@arlequins/api...
       - name: Run SST operation
         env:
           DEPLOY_APPLICATION: api
@@ -108,6 +110,8 @@ jobs:
           fi
           umask 077
           printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
+      - name: Build web workspace dependencies
+        run: pnpm turbo run build --filter=@arlequins/web...
       - name: Run SST operation
         env:
           DEPLOY_APPLICATION: web
