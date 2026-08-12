@@ -196,23 +196,25 @@ export default $config({
       period: 300,
       statistic: "Sum",
     });
-    new aws.cloudwatch.MetricAlarm("ApiServerErrors", {
-      ...metric("ServerErrorCount"),
-      alarmName: `${$app.name}-${$app.stage}-server-errors`,
-      evaluationPeriods: 1,
-      threshold: 1,
-      comparisonOperator: "GreaterThanOrEqualToThreshold",
-      alarmActions,
-    });
-    new aws.cloudwatch.MetricAlarm("ApiLatency", {
-      ...metric("RequestDuration"),
-      alarmName: `${$app.name}-${$app.stage}-latency`,
-      statistic: "Average",
-      evaluationPeriods: 2,
-      threshold: 2_000,
-      comparisonOperator: "GreaterThanThreshold",
-      alarmActions,
-    });
+    if (alarmActions.length > 0) {
+      new aws.cloudwatch.MetricAlarm("ApiServerErrors", {
+        ...metric("ServerErrorCount"),
+        alarmName: `${$app.name}-${$app.stage}-server-errors`,
+        evaluationPeriods: 1,
+        threshold: 1,
+        comparisonOperator: "GreaterThanOrEqualToThreshold",
+        alarmActions,
+      });
+      new aws.cloudwatch.MetricAlarm("ApiLatency", {
+        ...metric("RequestDuration"),
+        alarmName: `${$app.name}-${$app.stage}-latency`,
+        statistic: "Average",
+        evaluationPeriods: 2,
+        threshold: 2_000,
+        comparisonOperator: "GreaterThanThreshold",
+        alarmActions,
+      });
+    }
     new aws.cloudwatch.Dashboard("ApiDashboard", {
       dashboardName: `${$app.name}-${$app.stage}`,
       dashboardBody: JSON.stringify({
