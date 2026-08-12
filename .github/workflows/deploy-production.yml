@@ -21,12 +21,49 @@ permissions:
 jobs:
   deploy-api:
     if: inputs.application == 'all' || inputs.application == 'api'
-    uses: ./.github/workflows/deploy-reusable.yml
-    with:
-      application: api
-      github_environment: production
-      stage: production
-      operation: deploy
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    concurrency:
+      group: sst-production-api
+      cancel-in-progress: false
+    env:
+      DEPLOY_STAGE: production
+      SST_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - name: Validate deployment inputs
+        env:
+          DEPLOY_APPLICATION: api
+          DEPLOY_OPERATION: deploy
+          DEPLOY_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+          DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          DEPLOY_STAGE: production
+        run: node scripts/validate-deployment-input.mjs
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_DEPLOY_REGION }}
+      - name: Write GitHub Environment values
+        env:
+          DEPLOYMENT_ENV_FILE: ${{ secrets.DEPLOYMENT_ENV_FILE }}
+        run: |
+          if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
+            echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
+      - name: Run SST operation
+        env:
+          DEPLOY_APPLICATION: api
+          DEPLOY_OPERATION: deploy
+          DEPLOY_STAGE: production
+        run: pnpm sst:ws api deploy -- --stage production
 
   deploy-web:
     needs: deploy-api
@@ -34,9 +71,46 @@ jobs:
       always() &&
       (inputs.application == 'all' || inputs.application == 'web') &&
       (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped')
-    uses: ./.github/workflows/deploy-reusable.yml
-    with:
-      application: web
-      github_environment: production
-      stage: production
-      operation: deploy
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    concurrency:
+      group: sst-production-web
+      cancel-in-progress: false
+    env:
+      DEPLOY_STAGE: production
+      SST_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ./tooling/github/setup
+      - name: Validate deployment inputs
+        env:
+          DEPLOY_APPLICATION: web
+          DEPLOY_OPERATION: deploy
+          DEPLOY_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+          DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          DEPLOY_STAGE: production
+        run: node scripts/validate-deployment-input.mjs
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_DEPLOY_REGION }}
+      - name: Write GitHub Environment values
+        env:
+          DEPLOYMENT_ENV_FILE: ${{ secrets.DEPLOYMENT_ENV_FILE }}
+        run: |
+          if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
+            echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
+      - name: Run SST operation
+        env:
+          DEPLOY_APPLICATION: web
+          DEPLOY_OPERATION: deploy
+          DEPLOY_STAGE: production
+        run: pnpm sst:ws web deploy -- --stage production
