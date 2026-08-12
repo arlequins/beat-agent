@@ -46,9 +46,7 @@ export function finishLogin(): Promise<User> {
   return getUserManager().signinRedirectCallback();
 }
 
-export async function startLogout(
-  redirect: (url: string) => void = (url) => window.location.assign(url),
-): Promise<void> {
+export async function startLogout(): Promise<void> {
   const manager = getUserManager();
   const user = await manager.getUser();
   if (user?.refresh_token) {
@@ -62,12 +60,11 @@ export async function startLogout(
       method: "POST",
     });
   }
-  await manager.removeUser();
-  redirect(siteUrl(""));
+  await manager.signoutRedirect();
 }
 
 export async function finishLogout(): Promise<void> {
-  await getUserManager().removeUser();
+  await getUserManager().signoutRedirectCallback();
 }
 
 type PersistentLogin = { createdAt: string; expiresAt: string };

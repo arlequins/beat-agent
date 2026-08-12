@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => {
     removeUser: vi.fn(),
     signinRedirect: vi.fn(),
     signinRedirectCallback: vi.fn(),
+    signoutRedirect: vi.fn(),
+    signoutRedirectCallback: vi.fn(),
   };
   return {
     manager,
@@ -84,24 +86,23 @@ describe("client OIDC", () => {
   it("finishes login and logout callbacks through the OIDC manager", async () => {
     const user = { access_token: "access-token" };
     mocks.manager.signinRedirectCallback.mockResolvedValue(user);
-    mocks.manager.removeUser.mockResolvedValue(undefined);
+    mocks.manager.signoutRedirectCallback.mockResolvedValue(undefined);
 
     await expect(finishLogin()).resolves.toBe(user);
     await expect(finishLogout()).resolves.toBeUndefined();
 
     expect(mocks.manager.signinRedirectCallback).toHaveBeenCalledOnce();
-    expect(mocks.manager.removeUser).toHaveBeenCalledOnce();
+    expect(mocks.manager.signoutRedirectCallback).toHaveBeenCalledOnce();
   });
 
-  it("revokes a refresh token before removing the browser session", async () => {
+  it("revokes a refresh token before starting provider logout", async () => {
     mocks.manager.getUser.mockResolvedValue({ refresh_token: "refresh-token" });
-    mocks.manager.removeUser.mockResolvedValue(undefined);
+    mocks.manager.signoutRedirect.mockResolvedValue(undefined);
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 200 }));
-    const redirect = vi.fn();
 
-    await startLogout(redirect);
+    await startLogout();
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://id.beat.test/revoke",
@@ -114,8 +115,7 @@ describe("client OIDC", () => {
         method: "POST",
       }),
     );
-    expect(mocks.manager.removeUser).toHaveBeenCalledOnce();
-    expect(redirect).toHaveBeenCalledWith("https://beat.test/");
+    expect(mocks.manager.signoutRedirect).toHaveBeenCalledOnce();
   });
 
   it("uses bearer authorization for session review and revocation", async () => {
