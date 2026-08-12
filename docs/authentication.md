@@ -41,6 +41,17 @@ http://localhost:3000/auth/logout-callback/
 운영 환경에는 실제 HTTPS 도메인의 동일 경로만 등록한다. wildcard callback은
 허용하지 않는다.
 
+GitHub Pages project site를 운영 웹으로 사용할 때의 고정 callback은 다음과
+같다.
+
+```text
+https://arlequins.github.io/beat-agent/auth/callback/
+https://arlequins.github.io/beat-agent/auth/logout-callback/
+```
+
+`NEXT_PUBLIC_SITE_URL`에도 `/beat-agent` 경로를 포함해야 하며, Pages 빌드는
+Next `basePath`를 동일하게 설정한다.
+
 현재 Beat 운영 provider 기준 계약은 다음과 같다. issuer URL은 배포로 바뀔 수
 있으므로 GitHub Environment의 `DEPLOYMENT_ENV_FILE`에서 관리한다.
 

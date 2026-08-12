@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "dotenv -e ../../.env.example -e ../../.env -- next build",
+    "build": "dotenv -e ../../.env -- next build",
     "clean": "git clean -xdf .cache .next .turbo node_modules",
     "dev": "pnpm with-env next dev",
     "sst:dev": "pnpm with-env sst dev",

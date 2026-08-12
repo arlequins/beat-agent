@@ -34,9 +34,9 @@ test("publishes a mobile-installable PWA without caching private routes", async 
   const workerResponse = await request.get("/sw.js");
   expect(workerResponse.status()).toBe(200);
   const worker = await workerResponse.text();
-  expect(worker).toContain('url.pathname.startsWith("/auth/")');
-  expect(worker).toContain('url.pathname.startsWith("/admin/")');
-  expect(worker).toContain('url.pathname.startsWith("/api/")');
+  expect(worker).toContain('url.pathname.startsWith(appPath("/auth/"))');
+  expect(worker).toContain('url.pathname.startsWith(appPath("/admin/"))');
+  expect(worker).toContain('url.pathname.startsWith(appPath("/api/"))');
   expect(worker).not.toContain("localStorage");
 
   expect(

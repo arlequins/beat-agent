@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { siteConfig } from "~/config/site";
+import { sitePath } from "~/lib/site-path";
 
 export const dynamic = "force-static";
 
@@ -11,29 +12,29 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     icons: [
       {
-        src: "/icons/beat-192.png",
+        src: sitePath("/icons/beat-192.png"),
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/icons/beat-512.png",
+        src: sitePath("/icons/beat-512.png"),
         sizes: "512x512",
         type: "image/png",
       },
       {
         purpose: "maskable",
-        src: "/icons/beat-maskable-512.png",
+        src: sitePath("/icons/beat-maskable-512.png"),
         sizes: "512x512",
         type: "image/png",
       },
     ],
-    id: "/",
+    id: sitePath("/"),
     lang: "ko",
     name: siteConfig.name,
     orientation: "any",
-    scope: "/",
+    scope: sitePath("/"),
     short_name: siteConfig.shortName,
-    start_url: "/",
+    start_url: sitePath("/"),
     theme_color: "#09090b",
   };
 }

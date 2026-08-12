@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from "next";
 import { OidcAuthProvider } from "~/auth/provider";
 import { PwaRegistration } from "~/components/pwa-registration";
 import { siteConfig } from "~/config/site";
+import { sitePath } from "~/lib/site-path";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/app/styles.css";
@@ -22,13 +23,21 @@ export const metadata: Metadata = {
     title: siteConfig.name,
   },
   icons: {
-    apple: [{ sizes: "192x192", url: "/icons/beat-192.png" }],
+    apple: [{ sizes: "192x192", url: sitePath("/icons/beat-192.png") }],
     icon: [
-      { sizes: "192x192", type: "image/png", url: "/icons/beat-192.png" },
-      { sizes: "512x512", type: "image/png", url: "/icons/beat-512.png" },
+      {
+        sizes: "192x192",
+        type: "image/png",
+        url: sitePath("/icons/beat-192.png"),
+      },
+      {
+        sizes: "512x512",
+        type: "image/png",
+        url: sitePath("/icons/beat-512.png"),
+      },
     ],
   },
-  manifest: "/manifest.webmanifest",
+  manifest: sitePath("/manifest.webmanifest"),
 };
 
 export const viewport: Viewport = {

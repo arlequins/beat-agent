@@ -2,6 +2,7 @@ import type { User } from "oidc-client-ts";
 import { UserManager, WebStorageStateStore } from "oidc-client-ts";
 
 import { env } from "~/env";
+import { sitePath as pathFromSiteUrl } from "~/lib/site-path";
 
 let userManager: UserManager | undefined;
 
@@ -12,7 +13,10 @@ function oidcScope() {
 }
 
 function siteUrl(path: string): string {
-  return new URL(path, `${env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/`).href;
+  return new URL(
+    pathFromSiteUrl(path, env.NEXT_PUBLIC_SITE_URL),
+    env.NEXT_PUBLIC_SITE_URL,
+  ).href;
 }
 
 export function getUserManager(): UserManager {
@@ -100,11 +104,11 @@ export function revokeOidcSessions(accessToken: string) {
 }
 
 export function safeReturnPath(state: unknown): string {
-  if (!state || typeof state !== "object") return "/";
+  if (!state || typeof state !== "object") return pathFromSiteUrl("/");
   const returnTo = Reflect.get(state, "returnTo");
   return typeof returnTo === "string" &&
     returnTo.startsWith("/") &&
     !returnTo.startsWith("//")
     ? returnTo
-    : "/";
+    : pathFromSiteUrl("/");
 }
