@@ -2,9 +2,12 @@
 
 import { useEffect } from "react";
 
+import { sitePath } from "~/lib/site-path";
+
 export function registerPwaServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  return navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  const scope = sitePath("/");
+  return navigator.serviceWorker.register(sitePath("/sw.js"), { scope });
 }
 
 export function schedulePwaRegistration(

@@ -13,6 +13,7 @@ release automation. Security policy and AWS trust configuration remain in
 | `Security` | pull requests, merge queue, `main`, `develop`, weekly | Dependency review, CodeQL, secret scanning, license policy, and SBOM |
 | `Preview deployment` | same-repository pull requests | Deploy or remove isolated `pr-NUMBER` API and web stages |
 | `Production deployment` | manual | Deploy one application through the protected `production` environment |
+| `GitHub Pages deployment` | `main` web changes, manual | Build and publish the static web application at `/beat-agent/` |
 | `Release` | successful `CI` on `main`, manual | Maintain the Release Please PR and create version tags |
 | `Publish tagged release` | `vX.Y.Z` tag push | Re-verify the tagged source and create the GitHub Release |
 | `AWS sandbox smoke` | manual, weekly | Exercise Function URL and API Gateway sandbox endpoints |
@@ -94,6 +95,43 @@ workflow can deploy `all` (API, then web) or a single application.
 Production application deployment is intentionally manual and separate from
 Release Please. Review the S3 data policy, active release, OIDC settings, and
 desired traffic-shift policy before triggering the production workflow.
+
+## GitHub Pages production web
+
+The web application is also published as a static project site at
+`https://arlequins.github.io/beat-agent/`. The `GitHub Pages deployment`
+workflow builds the existing Next.js export with `GITHUB_PAGES=true`, which
+sets the Next `basePath` and asset prefix to `/beat-agent`. It does not deploy
+AWS resources and does not use AWS credentials.
+
+Before the first Pages run, configure these non-sensitive variables on the
+protected `production` Environment:
+
+| Environment variable | Value |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | The deployed Beat Agent API HTTPS origin |
+| `NEXT_PUBLIC_OIDC_AUTHORITY` | The Beat OIDC issuer, ending in `/auth` |
+
+The workflow fixes the remaining public contract at build time:
+
+```text
+NEXT_PUBLIC_SITE_URL=https://arlequins.github.io/beat-agent
+NEXT_PUBLIC_OIDC_CLIENT_ID=beat-agent-web
+NEXT_PUBLIC_OIDC_SCOPE=openid profile email offline_access
+```
+
+The resulting callback URLs are therefore exactly:
+
+```text
+https://arlequins.github.io/beat-agent/auth/callback/
+https://arlequins.github.io/beat-agent/auth/logout-callback/
+```
+
+Register both exact URLs in Beat's `BEAT_AUTH_CLIENTS_JSON` allowlist. Do not
+add wildcard callbacks or put an OIDC secret in the Pages Environment; the
+browser client is public and uses Authorization Code + PKCE S256. Beat's API
+must allow the browser origin `https://arlequins.github.io` in
+`API_CORS_ORIGINS`.
 
 ## Failure Diagnostics
 

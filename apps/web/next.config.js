@@ -5,10 +5,20 @@ const jiti = createJiti(import.meta.url);
 // Import env files to validate at build time. Use jiti so we can load .ts files in here.
 await jiti.import("./src/env");
 
+const isGitHubPages = process.env.GITHUB_PAGES === "true";
+
 /** @type {import("next").NextConfig} */
 const config = {
   /** Static HTML export for S3 + CloudFront (no OpenNext / Node server in AWS for this app) */
   output: "export",
+
+  /** GitHub project Pages serves the static export below /beat-agent. */
+  ...(isGitHubPages
+    ? {
+        basePath: "/beat-agent",
+        assetPrefix: "/beat-agent/",
+      }
+    : {}),
 
   poweredByHeader: false,
 
