@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0](https://github.com/arlequins/beat-agent/compare/v0.4.2...v0.5.0) (2026-08-12)
+
+
+### Features
+
+* integrate Beat OIDC logout contract ([#8](https://github.com/arlequins/beat-agent/issues/8)) ([2bb8644](https://github.com/arlequins/beat-agent/commit/2bb8644e4cdd880c5ac3eba42f10b5f4933ffa9d))
+
 ## [0.4.2](https://github.com/arlequins/beat-agent/compare/v0.4.1...v0.4.2) (2026-08-04)
 
 
