@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0](https://github.com/arlequins/beat-agent/compare/v0.5.0...v0.6.0) (2026-08-12)
+
+
+### Features
+
+* **web:** publish Beat Agent on GitHub Pages ([#10](https://github.com/arlequins/beat-agent/issues/10)) ([e9d70aa](https://github.com/arlequins/beat-agent/commit/e9d70aae3ca2c6915b73d0e28b37213300a4a8e4))
+
 ## [0.5.0](https://github.com/arlequins/beat-agent/compare/v0.4.2...v0.5.0) (2026-08-12)
 
 
