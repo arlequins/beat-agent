@@ -40,6 +40,7 @@ export default $config({
       wafEnabled: serverEnv.API_WAF_ENABLED,
     });
     const dataBucket = new aws.s3.BucketV2("AgentData", {
+      bucket: `${$app.name}-${$app.stage}-data`,
       tags: {
         Application: "beat-agent",
         DataClassification: "sensitive-personal",
@@ -197,6 +198,7 @@ export default $config({
     });
     new aws.cloudwatch.MetricAlarm("ApiServerErrors", {
       ...metric("ServerErrorCount"),
+      alarmName: `${$app.name}-${$app.stage}-server-errors`,
       evaluationPeriods: 1,
       threshold: 1,
       comparisonOperator: "GreaterThanOrEqualToThreshold",
@@ -204,6 +206,7 @@ export default $config({
     });
     new aws.cloudwatch.MetricAlarm("ApiLatency", {
       ...metric("RequestDuration"),
+      alarmName: `${$app.name}-${$app.stage}-latency`,
       statistic: "Average",
       evaluationPeriods: 2,
       threshold: 2_000,
