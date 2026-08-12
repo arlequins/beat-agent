@@ -41,17 +41,24 @@ http://localhost:3000/auth/logout-callback/
 운영 환경에는 실제 HTTPS 도메인의 동일 경로만 등록한다. wildcard callback은
 허용하지 않는다.
 
-```dotenv
-OIDC_ISSUER_URL=https://id.beat.example
-OIDC_AUDIENCE=https://api.agent.beat.example
-OIDC_ALLOWED_ALGORITHMS=RS256
-AUTH_BOOTSTRAP_ADMIN_IDENTITIES=https://id.beat.example|approved-subject
+현재 Beat 운영 provider 기준 계약은 다음과 같다. issuer URL은 배포로 바뀔 수
+있으므로 GitHub Environment의 `DEPLOYMENT_ENV_FILE`에서 관리한다.
 
-NEXT_PUBLIC_OIDC_AUTHORITY=https://id.beat.example
+```dotenv
+OIDC_ISSUER_URL=https://BEAT_API_ORIGIN/auth
+OIDC_AUDIENCE=beat-agent
+OIDC_ALLOWED_ALGORITHMS=ES256
+AUTH_BOOTSTRAP_ADMIN_IDENTITIES=https://BEAT_API_ORIGIN/auth|approved-subject
+
+NEXT_PUBLIC_OIDC_AUTHORITY=https://BEAT_API_ORIGIN/auth
 NEXT_PUBLIC_OIDC_CLIENT_ID=beat-agent-web
-NEXT_PUBLIC_OIDC_RESOURCE=https://api.agent.beat.example
 NEXT_PUBLIC_OIDC_SCOPE=openid profile email offline_access
 ```
+
+Beat access token의 audience는 URL이 아닌 `beat-agent`다. 따라서 브라우저가
+RFC 8707 `resource` 요청 파라미터를 보내지 않도록
+`NEXT_PUBLIC_OIDC_RESOURCE`는 운영 환경에서 생략한다. Beat Agent API URL은
+별도의 `NEXT_PUBLIC_API_URL`로 설정한다.
 
 JWKS URI는 discovery 문서에서 찾는다. provider가 표준 discovery를 제공하지
 않을 때만 `OIDC_JWKS_URI`를 명시한다.
@@ -70,8 +77,10 @@ JWKS URI는 discovery 문서에서 찾는다. provider가 표준 discovery를 �
 - XSS 사고가 의심되면 Beat OIDC에서 해당 사용자의 session을 폐기한다.
 
 refresh token의 회전, 재사용 탐지와 모든 기기 로그아웃은 Beat OIDC provider가
-소유한다. Beat Agent는 refresh token 데이터베이스나 비밀번호 endpoint를
-제공하지 않는다.
+소유한다. 이 기기에서 로그아웃할 때 Agent는 refresh token을 먼저 revocation
+endpoint에서 폐기하고 provider의 `end_session_endpoint`로 이동한다. callback은
+`/auth/logout-callback/`에서 검증한다. Beat Agent는 refresh token 데이터베이스나
+비밀번호 endpoint를 제공하지 않는다.
 
 ## 로컬과 E2E
 
