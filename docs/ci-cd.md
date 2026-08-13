@@ -57,15 +57,18 @@ S3 settings, CORS origins, and `NEXT_PUBLIC_*` deployment values
 there; never commit it or print it in workflow logs. GitHub masks the secret,
 and the workflow writes it with owner-only file permissions.
 
-The optional non-sensitive Environment variables `API_CORS_ORIGINS` and
-`OIDC_ISSUER_URL` are appended after `DEPLOYMENT_ENV_FILE` when present. Set
-`API_CORS_ORIGINS` to browser origins only, without a path, for example
+The optional non-sensitive Environment variables `API_CORS_ORIGINS`,
+`OIDC_ISSUER_URL`, and `NEXT_PUBLIC_OIDC_AUTHORITY` are appended after
+`DEPLOYMENT_ENV_FILE` when present. Set `API_CORS_ORIGINS` to browser origins
+only, without a path, for example
 `https://arlequins.github.io`. Set `OIDC_ISSUER_URL` to the shared Beat OIDC
 issuer, ending in `/auth`, for example
 `https://<beat-api-host>/auth`. This lets the Pages project site use
 `/beat-agent/` for its web path while the API keeps an exact origin-only CORS
-allowlist and validates tokens issued by Beat. The production smoke workflow
-detects public contract mismatches.
+allowlist and validates tokens issued by Beat. Keep
+`NEXT_PUBLIC_OIDC_AUTHORITY` equal to the same issuer so the static browser
+bundle and API share one authentication contract. The production smoke
+workflow detects public contract mismatches.
 
 The API must be deployed before the static web application. For unattended API
 then web deployment, use stable custom domains: set `API_CUSTOM_DOMAIN` and set

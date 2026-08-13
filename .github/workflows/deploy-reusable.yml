@@ -61,6 +61,7 @@ jobs:
           DEPLOYMENT_ENV_FILE: ${{ secrets.DEPLOYMENT_ENV_FILE }}
           API_CORS_ORIGINS: ${{ vars.API_CORS_ORIGINS }}
           OIDC_ISSUER_URL: ${{ vars.OIDC_ISSUER_URL }}
+          NEXT_PUBLIC_OIDC_AUTHORITY: ${{ vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
         run: |
           if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
             echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
@@ -73,6 +74,9 @@ jobs:
           fi
           if [ -n "$OIDC_ISSUER_URL" ]; then
             printf 'OIDC_ISSUER_URL=%s\n' "$OIDC_ISSUER_URL" >> .env
+          fi
+          if [ -n "$NEXT_PUBLIC_OIDC_AUTHORITY" ]; then
+            printf 'NEXT_PUBLIC_OIDC_AUTHORITY=%s\n' "$NEXT_PUBLIC_OIDC_AUTHORITY" >> .env
           fi
 
       - name: Run SST operation
