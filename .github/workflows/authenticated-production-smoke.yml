@@ -1,0 +1,69 @@
+name: Authenticated production smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      expect_model:
+        description: Expected production model state
+        required: true
+        type: choice
+        default: disabled
+        options: [disabled, enabled]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      WEB_URL: https://arlequins.github.io/beat-agent/
+      API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      OIDC_AUTHORITY: ${{ vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
+      PRODUCTION_AUTH_SMOKE_EMAIL: ${{ secrets.PRODUCTION_AUTH_SMOKE_EMAIL }}
+      PRODUCTION_AUTH_SMOKE_PASSWORD: ${{ secrets.PRODUCTION_AUTH_SMOKE_PASSWORD }}
+      PRODUCTION_AUTH_SMOKE_WORKSPACE_ID: ${{ vars.PRODUCTION_AUTH_SMOKE_WORKSPACE_ID }}
+      EXPECT_MODEL: ${{ inputs.expect_model }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: ./tooling/github/setup
+
+      - name: Validate protected smoke inputs
+        run: |
+          set -euo pipefail
+          [[ -n "$PRODUCTION_AUTH_SMOKE_EMAIL" ]] || {
+            echo "production secret PRODUCTION_AUTH_SMOKE_EMAIL is required" >&2
+            exit 1
+          }
+          [[ -n "$PRODUCTION_AUTH_SMOKE_PASSWORD" ]] || {
+            echo "production secret PRODUCTION_AUTH_SMOKE_PASSWORD is required" >&2
+            exit 1
+          }
+          [[ -n "$PRODUCTION_AUTH_SMOKE_WORKSPACE_ID" ]] || {
+            echo "production variable PRODUCTION_AUTH_SMOKE_WORKSPACE_ID is required" >&2
+            exit 1
+          }
+          [[ "$API_URL" == https://* ]] || {
+            echo "production variable NEXT_PUBLIC_API_URL must be an HTTPS URL" >&2
+            exit 1
+          }
+          [[ "$OIDC_AUTHORITY" == https://*/auth ]] || {
+            echo "production variable NEXT_PUBLIC_OIDC_AUTHORITY must end in /auth" >&2
+            exit 1
+          }
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run authenticated production smoke
+        run: >-
+          node scripts/authenticated-production-smoke.mjs
+          "$WEB_URL"
+          "$API_URL"
+          "$OIDC_AUTHORITY"
+          "$EXPECT_MODEL"

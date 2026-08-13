@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { randomUUID } from "node:crypto";
+
 const [webInput, apiInput, authorityInput] = process.argv.slice(2);
 
 if (!webInput || !apiInput || !authorityInput) {
@@ -135,6 +137,22 @@ if (
   throw new Error("API CORS preflight does not allow POST");
 }
 checks.push("api.live-and-cors-preflight");
+
+const unauthenticatedAgent = await get(appendPath(api, "agent/stream"), {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    conversationId: randomUUID(),
+    question: "인증 경계 스모크 테스트",
+    workspaceId: randomUUID(),
+  }),
+});
+if (unauthenticatedAgent.response.status !== 401) {
+  throw new Error(
+    `Unauthenticated agent request returned HTTP ${unauthenticatedAgent.response.status} (expected 401)`,
+  );
+}
+checks.push("api.agent-auth-boundary");
 
 const ready = await expectOk(appendPath(api, "health/ready"), "API readiness");
 if (parseJson(ready.body, "API readiness").status !== "ok") {
