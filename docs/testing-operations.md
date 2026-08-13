@@ -16,6 +16,8 @@ For file naming, mocking, and test design rules, see the
   PWA metadata and private-route cache boundaries, visual regression, and
   accessibility checks on desktop and mobile Chromium.
 - AWS sandbox smoke tests validate both deployment presets on a schedule and on demand.
+- The production contract smoke validates the deployed Pages, API health,
+  CORS, PWA, and OIDC discovery contracts without using user credentials.
 - k6 baseline load tests are manual and target a dedicated non-production endpoint.
 
 Create a `sandbox` GitHub Environment and configure
@@ -35,6 +37,18 @@ For one-off validation, provide `function_url` and `gateway_url` through the
 manual workflow inputs instead of changing the saved environment variables.
 Configure `LOAD_TEST_API_URL` separately as a repository variable. Do not run
 load tests against production without an approved capacity and incident plan.
+
+Run the public production contract check manually when needed:
+
+```bash
+gh workflow run production-smoke.yml
+```
+
+The workflow uses the protected `production` Environment variables
+`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_OIDC_AUTHORITY`. It never prints or
+requires an access token. Interactive login and authenticated conversation
+journeys should be added only after a dedicated protected test identity is
+available.
 
 ## Flaky-test Policy
 

@@ -17,6 +17,7 @@ release automation. Security policy and AWS trust configuration remain in
 | `Release` | successful `CI` on `main`, manual | Maintain the Release Please PR and create version tags |
 | `Publish tagged release` | `vX.Y.Z` tag push | Re-verify the tagged source and create the GitHub Release |
 | `AWS sandbox smoke` | manual, weekly | Exercise Function URL and API Gateway sandbox endpoints |
+| `Production contract smoke` | Pages deployment, manual, daily | Verify the public Pages, API, CORS, PWA, and OIDC contracts |
 | `Baseline load test` | manual | Run the k6 baseline against an approved HTTPS target |
 
 CI jobs use the shared `tooling/github/setup` action. It reads the pinned Node
@@ -151,6 +152,14 @@ chat completion remains intentionally disabled. Do not put a placeholder model
 ID in the production Environment; add an approved Bedrock model ID and exact
 model ARN only after the corresponding least-privilege IAM diff has been
 reviewed through the protected infrastructure workflow.
+
+The `Production contract smoke` workflow runs without credentials and checks the
+deployed Pages project path, PWA manifest and service worker, callback routes,
+API liveness/readiness, Pages-origin CORS, and the Beat OIDC discovery document.
+It runs after a successful Pages deployment, daily, or manually with optional
+HTTPS URL overrides. It deliberately does not attempt an interactive login or
+send conversation content; those checks require a protected test identity and
+belong in a separate authenticated browser workflow.
 
 ## Failure Diagnostics
 

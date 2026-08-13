@@ -1,0 +1,54 @@
+name: Production contract smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      web_url:
+        description: Optional Pages URL override
+        required: false
+        type: string
+      api_url:
+        description: Optional API URL override
+        required: false
+        type: string
+      oidc_authority:
+        description: Optional OIDC authority override
+        required: false
+        type: string
+  workflow_run:
+    workflows: [GitHub Pages deployment]
+    types: [completed]
+  schedule:
+    - cron: "17 3 * * *"
+
+concurrency:
+  group: production-contract-smoke
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WEB_URL: ${{ inputs.web_url || 'https://arlequins.github.io/beat-agent' }}
+      API_URL: ${{ inputs.api_url || vars.NEXT_PUBLIC_API_URL }}
+      OIDC_AUTHORITY: ${{ inputs.oidc_authority || vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Validate production contract
+        run: node scripts/smoke-production.mjs "$WEB_URL" "$API_URL" "$OIDC_AUTHORITY"
