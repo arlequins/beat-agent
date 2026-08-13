@@ -2,6 +2,17 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.2](https://github.com/arlequins/beat-agent/compare/v0.6.1...v0.6.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* align production OIDC issuer with Beat ([#27](https://github.com/arlequins/beat-agent/issues/27)) ([1aba97e](https://github.com/arlequins/beat-agent/commit/1aba97ed84cd9f363c74027cdfdac8d7856a639f))
+* configure Function URL CORS ([#25](https://github.com/arlequins/beat-agent/issues/25)) ([c9b9b95](https://github.com/arlequins/beat-agent/commit/c9b9b953ccd5a35bfbadd25c4f094f7c81c97aa3))
+* honor Function URL CORS methods ([#26](https://github.com/arlequins/beat-agent/issues/26)) ([2a05924](https://github.com/arlequins/beat-agent/commit/2a0592406a6ae1045a81cc090ec507b1cf03fe07))
+* keep production CORS origin explicit ([#20](https://github.com/arlequins/beat-agent/issues/20)) ([ce24fb7](https://github.com/arlequins/beat-agent/commit/ce24fb7862612912a0c0330cd643c4da53bf600c))
+* pass public OIDC authority to web builds ([#28](https://github.com/arlequins/beat-agent/issues/28)) ([208830e](https://github.com/arlequins/beat-agent/commit/208830eaf072e8e74dce19571c42489d94892896))
+
 ## [0.6.1](https://github.com/arlequins/beat-agent/compare/v0.6.0...v0.6.1) (2026-08-13)
 
 
