@@ -104,7 +104,9 @@ prevent self-review there.
 Preview stages retain the SST name `pr-NUMBER` while using the shared `preview`
 GitHub Environment. This permits a single non-production secret set without
 exposing production configuration to pull-request deployments. The production
-workflow can deploy `all` (API, then web) or a single application.
+workflow can deploy `all` (SST API, then GitHub Pages web) or a single
+application. The production web target publishes the Pages artifact and does
+not provision an AWS StaticSite; SST is reserved for the API deployment.
 
 Production application deployment is intentionally manual and separate from
 Release Please. Review the S3 data policy, active release, OIDC settings, and

@@ -17,6 +17,7 @@ concurrency:
 permissions:
   contents: read
   id-token: write
+  pages: write
 
 jobs:
   deploy-api:
@@ -87,60 +88,49 @@ jobs:
       (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped')
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 30
+    timeout-minutes: 20
     concurrency:
-      group: sst-production-web
-      cancel-in-progress: false
+      group: github-pages
+      cancel-in-progress: true
     env:
-      DEPLOY_STAGE: production
-      SST_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+      GITHUB_PAGES: "true"
+      NEXT_PUBLIC_SITE_URL: https://arlequins.github.io/beat-agent
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_OIDC_AUTHORITY: ${{ vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
+      NEXT_PUBLIC_OIDC_CLIENT_ID: beat-agent-web
+      NEXT_PUBLIC_OIDC_SCOPE: openid profile email offline_access
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: ./tooling/github/setup
-      - name: Validate deployment inputs
-        env:
-          DEPLOY_APPLICATION: web
-          DEPLOY_OPERATION: deploy
-          DEPLOY_AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
-          DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          DEPLOY_STAGE: production
-        run: node scripts/validate-deployment-input.mjs
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_DEPLOY_REGION }}
-      - name: Write GitHub Environment values
-        env:
-          DEPLOYMENT_ENV_FILE: ${{ secrets.DEPLOYMENT_ENV_FILE }}
-          API_CORS_ORIGINS: ${{ vars.API_CORS_ORIGINS }}
-          OIDC_ISSUER_URL: ${{ vars.OIDC_ISSUER_URL }}
-          NEXT_PUBLIC_OIDC_AUTHORITY: ${{ vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
+      - name: Validate production Pages contract
         run: |
-          if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
-            echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
+          set -euo pipefail
+          [[ "$NEXT_PUBLIC_API_URL" == https://* ]] || {
+            echo "production variable NEXT_PUBLIC_API_URL must be an HTTPS URL" >&2
             exit 1
-          fi
-          umask 077
-          printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
-          if [ -n "$API_CORS_ORIGINS" ]; then
-            printf 'API_CORS_ORIGINS=%s\n' "$API_CORS_ORIGINS" >> .env
-          fi
-          if [ -n "$OIDC_ISSUER_URL" ]; then
-            printf 'OIDC_ISSUER_URL=%s\n' "$OIDC_ISSUER_URL" >> .env
-          fi
-          if [ -n "$NEXT_PUBLIC_OIDC_AUTHORITY" ]; then
-            printf 'NEXT_PUBLIC_OIDC_AUTHORITY=%s\n' "$NEXT_PUBLIC_OIDC_AUTHORITY" >> .env
-          fi
+          }
+          [[ "$NEXT_PUBLIC_OIDC_AUTHORITY" == https://*/auth ]] || {
+            echo "production variable NEXT_PUBLIC_OIDC_AUTHORITY must end in /auth" >&2
+            exit 1
+          }
+      - name: Copy environment template
+        run: |
+          cp .env.example .env
+          # The local resource-indicator example must never be baked into the
+          # production Pages bundle. Beat uses the non-URL `beat-agent` audience.
+          sed -i '/^NEXT_PUBLIC_OIDC_RESOURCE=/d' .env
       - name: Build web workspace dependencies
         run: pnpm turbo run build --filter=@arlequins/web...
-      - name: Run SST operation
-        env:
-          DEPLOY_APPLICATION: web
-          DEPLOY_OPERATION: deploy
-          DEPLOY_STAGE: production
-        # Keep provider diagnostics in the protected Actions log when a static
-        # site update fails before SST can print a component-level error.
-        run: pnpm sst:ws web deploy -- --stage production --print-logs
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/out
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
