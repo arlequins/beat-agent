@@ -69,7 +69,18 @@ declare const sst: {
         environment?: Record<string, string>;
         url?:
           | boolean
-          | { router: { instance: { url: string }; path?: string } };
+          | {
+              router: { instance: { url: string }; path?: string };
+            }
+          | {
+              cors?: {
+                allowHeaders?: string[];
+                allowMethods?: ("GET" | "POST" | "OPTIONS")[];
+                allowOrigins?: string[];
+                exposeHeaders?: string[];
+                maxAge?: string;
+              };
+            };
         vpc?: {
           subnets: string[];
           securityGroups: string[];
