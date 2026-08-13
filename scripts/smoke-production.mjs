@@ -117,11 +117,13 @@ if (!corsPreflight.response.ok) {
     `API CORS preflight returned HTTP ${corsPreflight.response.status}`,
   );
 }
-if (
-  corsPreflight.response.headers.get("access-control-allow-origin") !==
-  webOrigin
-) {
-  throw new Error("API CORS preflight does not allow the GitHub Pages origin");
+const allowOrigin = corsPreflight.response.headers.get(
+  "access-control-allow-origin",
+);
+if (allowOrigin !== webOrigin) {
+  throw new Error(
+    `API CORS preflight origin mismatch (expected ${webOrigin}, received ${allowOrigin ?? "<none>"})`,
+  );
 }
 if (
   !corsPreflight.response.headers
