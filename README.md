@@ -65,15 +65,21 @@ API SST 스택은 다음을 생성합니다.
 - S3 prefix와 선택된 Bedrock 모델에 한정된 Lambda 권한
 - 오류, 지연시간, 요청량 대시보드와 알람
 
-Bedrock은 명시적 opt-in입니다. 활성화하려면 정확한 모델 ID와 런타임에 허용할
-ARN을 함께 지정합니다.
+Production은 Amazon Nova Lite의 Tokyo foundation model을 사용합니다. 모델
+식별자는 비밀이 아니지만, 배포 시점의 설정 일관성과 변경 감사를 위해 보호된
+GitHub `production` Environment의 `DEPLOYMENT_ENV_FILE`에만 주입합니다.
 
 ```dotenv
-BEDROCK_MODEL_ID=replace-with-approved-model-id
-BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-1::foundation-model/replace-me
+BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-lite-v1:0
 ```
 
-모델을 지정하지 않으면 AWS 배포에서 모델 호출 권한도 생성하지 않습니다.
+Production에서는 두 값을 모두 정확히 지정해야 하며, 다른 모델·리전·ARN은
+SST 설정 검증에서 거부합니다. Lambda에는 `bedrock:InvokeModelWithResponseStream`
+하나만 이 ARN에 부여되고, 현재 Bedrock ConverseStream 경로로만 호출합니다.
+로컬과 preview에서는 모델을 생략할 수 있으며, AWS 자격증명 없이 실행되는
+검증에서는 이 값을 활성화하지 않습니다. 배포 전 secret handoff와 smoke 절차는
+[Bedrock production 운영](./docs/bedrock-production.md)에 정리했습니다.
 Aurora, RDS, NAT Gateway, ECS와 상시 실행 컨테이너는 필요하지 않습니다.
 
 ## 데이터 릴리스

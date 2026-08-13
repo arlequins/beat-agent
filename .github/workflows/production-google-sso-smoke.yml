@@ -1,0 +1,27 @@
+name: Google SSO production smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      WEB_URL: https://arlequins.github.io/beat-agent/
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: ./tooling/github/setup
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Verify Beat redirects the Agent to Google SSO
+        run: node scripts/google-sso-production-smoke.mjs "$WEB_URL"

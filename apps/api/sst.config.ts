@@ -26,12 +26,19 @@ export default $config({
       clientEnv,
       LambdaEnvironment,
       resolveApiDeploymentConfig,
+      resolveBedrockConfiguration,
       serverEnv,
       sstAwsRegion,
       vpcFromEnv,
     } = await import("@arlequins/env");
 
     const region = sstAwsRegion();
+    const bedrock = resolveBedrockConfiguration({
+      modelArn: serverEnv.BEDROCK_MODEL_ARN,
+      modelId: serverEnv.BEDROCK_MODEL_ID,
+      region,
+      stage: $app.stage,
+    });
     const vpc = vpcFromEnv();
     const deployment = resolveApiDeploymentConfig({
       customDomain: serverEnv.API_CUSTOM_DOMAIN,
@@ -165,6 +172,8 @@ export default $config({
         : {}),
       environment: {
         ...LambdaEnvironment,
+        ...(bedrock.modelId ? { BEDROCK_MODEL_ID: bedrock.modelId } : {}),
+        ...(bedrock.modelArn ? { BEDROCK_MODEL_ARN: bedrock.modelArn } : {}),
         AGENT_JOBS_QUEUE_URL: jobsQueue.url,
         S3_AGENT_BUCKET: dataBucket.bucket,
         S3_AGENT_PREFIX: $app.stage,
@@ -183,11 +192,11 @@ export default $config({
           actions: ["sqs:SendMessage"],
           resources: [jobsQueue.arn],
         },
-        ...(serverEnv.BEDROCK_MODEL_ARN
+        ...(bedrock.modelArn
           ? [
               {
                 actions: ["bedrock:InvokeModelWithResponseStream"],
-                resources: [serverEnv.BEDROCK_MODEL_ARN],
+                resources: [bedrock.modelArn],
               },
             ]
           : []),

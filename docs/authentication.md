@@ -3,6 +3,10 @@
 Beat은 별도의 운영용 아이디·비밀번호 저장소를 만들지 않고 기존 Beat 프로젝트의
 OIDC provider를 사용한다.
 
+운영 Beat의 OIDC authorization endpoint는 Google SSO를 통해 로그인할 수
+있으며, 허용 계정은 `tiret.rouge@gmail.com`이다. Google OAuth client secret은
+Beat에만 보관하고 Agent에는 전달하지 않는다.
+
 ```text
 Browser / installed PWA
   -> Authorization Code + PKCE S256

@@ -12,6 +12,12 @@ export {
   type ApiDeploymentPreset as ApiDeploymentPresetType,
   resolveApiDeploymentConfig,
 } from "./api-deployment.js";
+export {
+  PRODUCTION_BEDROCK_MODEL_ARN,
+  PRODUCTION_BEDROCK_MODEL_ID,
+  PRODUCTION_BEDROCK_REGION,
+  resolveBedrockConfiguration,
+} from "./bedrock.js";
 export { clientEnv } from "./env-client.js";
 export {
   DEFAULT_SST_AWS_REGION,

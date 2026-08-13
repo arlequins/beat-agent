@@ -4,10 +4,7 @@
     {
       "Sid": "InvokeOnlyApprovedBedrockModel",
       "Effect": "Allow",
-      "Action": [
-        "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream"
-      ],
+      "Action": ["bedrock:InvokeModelWithResponseStream"],
       "Resource": "arn:aws:bedrock:${AWS_REGION}::foundation-model/${BEDROCK_MODEL_ID}"
     },
     {
