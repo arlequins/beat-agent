@@ -94,16 +94,45 @@ for (const path of ["auth/callback/", "auth/logout-callback/"]) {
 }
 
 const webOrigin = web.origin;
-const live = await expectOk(appendPath(api, "health/live"), "API liveness", {
-  headers: { Origin: webOrigin },
-});
+const live = await expectOk(appendPath(api, "health/live"), "API liveness");
 if (parseJson(live.body, "API liveness").status !== "ok") {
   throw new Error("API liveness did not report ok");
 }
-if (live.response.headers.get("access-control-allow-origin") !== webOrigin) {
-  throw new Error("API CORS does not allow the GitHub Pages origin");
+
+const corsPreflight = await expectOk(
+  appendPath(api, "api/trpc"),
+  "API CORS preflight",
+  {
+    method: "OPTIONS",
+    headers: {
+      Origin: webOrigin,
+      "Access-Control-Request-Headers":
+        "authorization,content-type,trpc-accept",
+      "Access-Control-Request-Method": "POST",
+    },
+  },
+);
+if (corsPreflight.response.status !== 204) {
+  throw new Error(
+    `API CORS preflight returned HTTP ${corsPreflight.response.status}`,
+  );
 }
-checks.push("api.live-and-cors");
+if (
+  corsPreflight.response.headers.get("access-control-allow-origin") !==
+  webOrigin
+) {
+  throw new Error("API CORS preflight does not allow the GitHub Pages origin");
+}
+if (
+  !corsPreflight.response.headers
+    .get("access-control-allow-methods")
+    ?.split(",")
+    .map((method) => method.trim().toUpperCase())
+    .includes("POST")
+) {
+  throw new Error("API CORS preflight does not allow POST");
+}
+checks.push("api.live-and-cors-preflight");
 
 const ready = await expectOk(appendPath(api, "health/ready"), "API readiness");
 if (parseJson(ready.body, "API readiness").status !== "ok") {
