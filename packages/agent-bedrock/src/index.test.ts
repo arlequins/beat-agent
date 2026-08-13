@@ -12,7 +12,7 @@ describe("createBedrockModelProvider", () => {
       },
       modelId: "example.model",
     });
-    const chunks: string[] = [];
+    const chunks: unknown[] = [];
     for await (const chunk of provider.streamText({
       messages: [{ content: "hello", role: "user" }],
     }))

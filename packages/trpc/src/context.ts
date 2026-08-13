@@ -1,4 +1,5 @@
 import type {
+  AgentToolPort,
   DocumentExtractionPort,
   EmbeddingProviderPort,
   KnowledgeSearchPort,
@@ -13,6 +14,7 @@ export type TRPCServices = {
   agent: S3AgentPlatformRepository;
   model?: ModelProviderPort;
   modelId?: string;
+  tools?: AgentToolPort;
   embedding?: EmbeddingProviderPort;
   documentExtraction: DocumentExtractionPort;
   knowledgeSearch: KnowledgeSearchPort;

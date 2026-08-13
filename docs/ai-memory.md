@@ -17,7 +17,7 @@ This page is a durable context note for AI agents working in Beat Agent.
 - `apps/api`: Hono API, local server, Lambda entry point, and SST infrastructure.
 - `packages/trpc`: typed transport, composition, S3 repositories, retrieval, and model adapters.
 - `packages/service`: framework-neutral domain and application services.
-- `packages/agent-*`: provider-neutral agent behavior plus Ollama, Bedrock, and vector adapters.
+- `packages/agent-*`: provider-neutral agent behavior plus MCP, Ollama, Bedrock, and vector adapters.
 - `packages/auth`: OIDC token verification and authorization policy.
 - `packages/env`: validated environment variables.
 - `packages/ui`: shared React UI.

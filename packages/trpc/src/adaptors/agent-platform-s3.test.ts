@@ -270,7 +270,11 @@ describe("S3 agent platform repository", () => {
         ],
         runId: run.id,
       }),
-    ).resolves.toEqual({ averageCitationRecall: 1, cases: 1 });
+    ).resolves.toEqual({
+      averageCitationPrecision: 1,
+      averageCitationRecall: 1,
+      cases: 1,
+    });
     await expect(
       repository.completeEvaluationRun(actor, {
         results: [

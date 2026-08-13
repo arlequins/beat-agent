@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateRetrievalCase } from "./evaluation";
+import { evaluateCitationPrecision, evaluateRetrievalCase } from "./evaluation";
 
 describe("evaluateRetrievalCase", () => {
   it("deduplicates retrieved chunks and measures expected citation recall", () => {
@@ -31,5 +31,14 @@ describe("evaluateRetrievalCase", () => {
         retrievedChunkIds: [],
       }).citationRecall,
     ).toBe(1);
+  });
+
+  it("measures citation precision without counting duplicate chunks twice", () => {
+    expect(
+      evaluateCitationPrecision({
+        expectedChunkIds: ["expected"],
+        retrievedChunkIds: ["expected", "expected", "other"],
+      }),
+    ).toBe(0.5);
   });
 });
