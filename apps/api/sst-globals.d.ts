@@ -75,7 +75,7 @@ declare const sst: {
           | {
               cors?: {
                 allowHeaders?: string[];
-                allowMethods?: ("GET" | "POST" | "OPTIONS")[];
+                allowMethods?: ("GET" | "POST")[];
                 allowOrigins?: string[];
                 exposeHeaders?: string[];
                 maxAge?: string;
