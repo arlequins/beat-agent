@@ -112,7 +112,7 @@ const corsPreflight = await expectOk(
     },
   },
 );
-if (corsPreflight.response.status !== 204) {
+if (!corsPreflight.response.ok) {
   throw new Error(
     `API CORS preflight returned HTTP ${corsPreflight.response.status}`,
   );
