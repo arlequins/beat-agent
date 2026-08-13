@@ -61,8 +61,8 @@ jobs:
           # production Pages bundle. Beat uses the non-URL `beat-agent` audience.
           sed -i '/^NEXT_PUBLIC_OIDC_RESOURCE=/d' .env
 
-      - name: Build static web export
-        run: pnpm --filter @arlequins/web build
+      - name: Build web workspace dependencies
+        run: pnpm turbo run build --filter=@arlequins/web...
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
