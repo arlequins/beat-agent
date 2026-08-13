@@ -2,6 +2,17 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.1](https://github.com/arlequins/beat-agent/compare/v0.6.0...v0.6.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* bind production deployment to environment secrets ([e84020d](https://github.com/arlequins/beat-agent/commit/e84020d91ef2dc9fab36ea09f757200f65613132))
+* build Pages workspace dependencies ([8903954](https://github.com/arlequins/beat-agent/commit/8903954b0ef837ccb416100e6ad9a6f5bd10e021))
+* build workspace dependencies before production deploy ([0eac294](https://github.com/arlequins/beat-agent/commit/0eac2947fe0c14d0d0672e0acd30c774696e8870))
+* create alarms only with notification target ([fe1af1d](https://github.com/arlequins/beat-agent/commit/fe1af1dc063d9dc50c510e9ac44548656e3193c4))
+* name production data and alarm resources ([f71047b](https://github.com/arlequins/beat-agent/commit/f71047b2da619ba3d1a8c15b6a4bc17822fedb6f))
+
 ## [0.6.0](https://github.com/arlequins/beat-agent/compare/v0.5.0...v0.6.0) (2026-08-12)
 
 
