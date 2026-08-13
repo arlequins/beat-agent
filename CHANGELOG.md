@@ -2,6 +2,14 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0](https://github.com/arlequins/beat-agent/compare/v0.7.0...v0.8.0) (2026-08-13)
+
+
+### Features
+
+* **mcp:** add official sdk and protected endpoint ([c49bac6](https://github.com/arlequins/beat-agent/commit/c49bac6e15a85e1fbdd106b63e622af245a43c99))
+* **mcp:** add official SDK and protected endpoint ([ecedf30](https://github.com/arlequins/beat-agent/commit/ecedf309fb7dbae1cd1354c0e0cab168edcbf6ae))
+
 ## [0.7.0](https://github.com/arlequins/beat-agent/compare/v0.6.3...v0.7.0) (2026-08-13)
 
 
