@@ -20,7 +20,7 @@ adapter를 선택한다.
 
 | Port | 로컬 | AWS |
 | --- | --- | --- |
-| 모델 | loopback Ollama | opt-in Bedrock Converse Stream |
+| 모델 | loopback Ollama | production Amazon Nova Lite Converse Stream |
 | 주 저장소 | Docker MinIO | private versioned S3 |
 | 기억·지식 검색 | S3 객체의 embedding/keyword | 활성 S3 release, 이후 선택적 S3 Vectors |
 | 긴 작업 | 직접 실행 | SQS FIFO + Lambda worker |
@@ -111,6 +111,8 @@ HTTP `409`, job ID와 예상 완료 시각을 반환한다. Lambda 중단으로 
 
 - S3, Lambda와 SQS를 기본 서버리스 구성으로 사용한다.
 - RDS, Aurora, NAT Gateway, ECS와 항상 실행되는 서비스를 만들지 않는다.
-- Bedrock은 모델 ID와 정확한 IAM ARN을 제공할 때만 활성화한다.
+- Production Bedrock은 `amazon.nova-lite-v1:0`과 정확한
+  `ap-northeast-1` ARN을 protected Environment에서 받을 때만 활성화한다.
+  Lambda 권한은 `bedrock:InvokeModelWithResponseStream` 하나로 제한한다.
 - S3 Vectors와 별도 백업·복제는 데이터량과 복구 목표가 필요해질 때 opt-in한다.
 - Budget과 Cost Anomaly alert는 모델 사용 전에 설정한다.

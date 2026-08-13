@@ -109,8 +109,20 @@ application. The production web target publishes the Pages artifact and does
 not provision an AWS StaticSite; SST is reserved for the API deployment.
 
 Production application deployment is intentionally manual and separate from
-Release Please. Review the S3 data policy, active release, OIDC settings, and
-desired traffic-shift policy before triggering the production workflow.
+Release Please. Review the S3 data policy, active release, OIDC settings, the
+Nova Lite Bedrock contract, and desired traffic-shift policy before triggering
+the production workflow. The API deployment fails closed unless the protected
+`DEPLOYMENT_ENV_FILE` contains both exact values:
+
+```dotenv
+BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-lite-v1:0
+```
+
+These are configuration identifiers, not credentials. Keep them in the
+protected Environment payload so the API and SST IAM policy cannot drift. The
+Lambda permission remains limited to
+`bedrock:InvokeModelWithResponseStream` on that single ARN.
 
 ## GitHub Pages production web
 
@@ -161,12 +173,10 @@ The following public endpoints were verified after the `v0.6.1` release on
 | Beat OIDC issuer | `https://4kfwvp7y2qoprape5p2jr5qvra0ekgcl.lambda-url.ap-northeast-1.on.aws/auth` |
 
 The API liveness endpoint and the Pages site returned HTTP 200 during the
-release handoff. The production API is currently deployed without a model
-provider configuration, so authentication and health checks are available but
-chat completion remains intentionally disabled. Do not put a placeholder model
-ID in the production Environment; add an approved Bedrock model ID and exact
-model ARN only after the corresponding least-privilege IAM diff has been
-reviewed through the protected infrastructure workflow.
+release handoff. The next protected production deployment enables the approved
+Nova Lite provider; until the `DEPLOYMENT_ENV_FILE` handoff and IAM diff are
+applied, the currently deployed API remains model-disabled. Never put a
+placeholder model ID in the production Environment.
 
 The `Production contract smoke` workflow runs without credentials and checks the
 deployed Pages project path, PWA manifest and service worker, callback routes,
@@ -174,7 +184,8 @@ API liveness/readiness, Pages-origin CORS, and the Beat OIDC discovery document.
 It runs after a successful Pages deployment, daily, or manually with optional
 HTTPS URL overrides. It deliberately does not attempt an interactive login or
 send conversation content; those checks require a protected test identity and
-belong in a separate authenticated browser workflow.
+belong in a separate authenticated browser workflow. After the Nova Lite
+handoff, run that protected workflow with `expect_model=enabled`.
 
 ## Failure Diagnostics
 

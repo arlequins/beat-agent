@@ -58,15 +58,16 @@ dedicated Beat test identity and an existing workspace:
 gh secret set PRODUCTION_AUTH_SMOKE_EMAIL --env production
 gh secret set PRODUCTION_AUTH_SMOKE_PASSWORD --env production
 gh variable set PRODUCTION_AUTH_SMOKE_WORKSPACE_ID --env production --body "workspace-id"
-gh workflow run authenticated-production-smoke.yml -f expect_model=disabled
+gh workflow run authenticated-production-smoke.yml -f expect_model=enabled
 ```
 
 Enter the two secret values interactively; never put them in chat, source
-files, `DEPLOYMENT_ENV_FILE`, or workflow logs. The current production API has
-no model provider configured, so `expect_model=disabled` verifies that login,
-authenticated conversation persistence, and the graceful model-unavailable
-response all work. Use `expect_model=enabled` only after an explicitly
-approved provider has been configured.
+files, `DEPLOYMENT_ENV_FILE`, or workflow logs. The production model is
+configured separately through the Nova Lite handoff in
+[Bedrock production operations](./bedrock-production.md). Use
+`expect_model=enabled` only after that protected Environment payload and its
+least-privilege IAM diff have been reviewed and deployed. Before the handoff,
+`expect_model=disabled` is the expected state for the existing deployment.
 
 ## Flaky-test Policy
 

@@ -29,7 +29,9 @@ This page is a durable context note for AI agents working in Beat Agent.
 - Reads remain on the previous complete release until a new manifest is complete and activated.
 - A per-user lease prevents concurrent personal-assistant work; busy responses include an estimated completion time when known.
 - Sensitive conversation and counseling context may be retained for the authenticated owner, with audit events and tombstones.
-- Bedrock is opt-in and receives permission only for the configured model ARN.
+- Production uses the Tokyo Amazon Nova Lite foundation model and receives only
+  `bedrock:InvokeModelWithResponseStream` for its exact configured ARN. Local
+  and preview stages may omit Bedrock and use Ollama.
 - The local OIDC mock must never be deployed as a production identity provider.
 
 ## Verification
