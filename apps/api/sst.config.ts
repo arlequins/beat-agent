@@ -285,7 +285,7 @@ export default $config({
                 "Trpc-Accept",
                 "X-Request-Id",
               ],
-              allowMethods: ["GET", "POST", "OPTIONS"],
+              allowMethods: ["GET", "POST"],
               allowOrigins: corsOrigins,
               exposeHeaders: [
                 "RateLimit-Limit",
