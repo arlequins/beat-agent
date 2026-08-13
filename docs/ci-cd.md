@@ -57,11 +57,15 @@ S3 settings, CORS origins, and `NEXT_PUBLIC_*` deployment values
 there; never commit it or print it in workflow logs. GitHub masks the secret,
 and the workflow writes it with owner-only file permissions.
 
-The optional non-sensitive Environment variable `API_CORS_ORIGINS` is appended
-after `DEPLOYMENT_ENV_FILE` when present. Set it to the browser origins only,
-without a path, for example `https://arlequins.github.io`. This lets a Pages
-project site use `/beat-agent/` for its web path while the API keeps an exact
-origin-only CORS allowlist. The production smoke workflow detects a mismatch.
+The optional non-sensitive Environment variables `API_CORS_ORIGINS` and
+`OIDC_ISSUER_URL` are appended after `DEPLOYMENT_ENV_FILE` when present. Set
+`API_CORS_ORIGINS` to browser origins only, without a path, for example
+`https://arlequins.github.io`. Set `OIDC_ISSUER_URL` to the shared Beat OIDC
+issuer, ending in `/auth`, for example
+`https://<beat-api-host>/auth`. This lets the Pages project site use
+`/beat-agent/` for its web path while the API keeps an exact origin-only CORS
+allowlist and validates tokens issued by Beat. The production smoke workflow
+detects public contract mismatches.
 
 The API must be deployed before the static web application. For unattended API
 then web deployment, use stable custom domains: set `API_CUSTOM_DOMAIN` and set
@@ -149,7 +153,7 @@ The following public endpoints were verified after the `v0.6.1` release on
 | --- | --- |
 | GitHub Pages web app | `https://arlequins.github.io/beat-agent/` |
 | API | `https://p3akjheufygfnr54k7vhz6kria0inkun.lambda-url.ap-northeast-1.on.aws/` |
-| Beat OIDC issuer | `https://p3akjheufygfnr54k7vhz6kria0inkun.lambda-url.ap-northeast-1.on.aws/auth` |
+| Beat OIDC issuer | `https://4kfwvp7y2qoprape5p2jr5qvra0ekgcl.lambda-url.ap-northeast-1.on.aws/auth` |
 
 The API liveness endpoint and the Pages site returned HTTP 200 during the
 release handoff. The production API is currently deployed without a model
