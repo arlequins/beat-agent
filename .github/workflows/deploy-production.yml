@@ -141,4 +141,6 @@ jobs:
           DEPLOY_APPLICATION: web
           DEPLOY_OPERATION: deploy
           DEPLOY_STAGE: production
-        run: pnpm sst:ws web deploy -- --stage production
+        # Keep provider diagnostics in the protected Actions log when a static
+        # site update fails before SST can print a component-level error.
+        run: pnpm sst:ws web deploy -- --stage production --print-logs
