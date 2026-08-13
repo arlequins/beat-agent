@@ -57,6 +57,12 @@ S3 settings, CORS origins, and `NEXT_PUBLIC_*` deployment values
 there; never commit it or print it in workflow logs. GitHub masks the secret,
 and the workflow writes it with owner-only file permissions.
 
+The optional non-sensitive Environment variable `API_CORS_ORIGINS` is appended
+after `DEPLOYMENT_ENV_FILE` when present. Set it to the browser origins only,
+without a path, for example `https://arlequins.github.io`. This lets a Pages
+project site use `/beat-agent/` for its web path while the API keeps an exact
+origin-only CORS allowlist. The production smoke workflow detects a mismatch.
+
 The API must be deployed before the static web application. For unattended API
 then web deployment, use stable custom domains: set `API_CUSTOM_DOMAIN` and set
 `NEXT_PUBLIC_API_URL` to that same HTTPS API URL in `DEPLOYMENT_ENV_FILE` before
