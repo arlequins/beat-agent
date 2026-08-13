@@ -133,6 +133,25 @@ browser client is public and uses Authorization Code + PKCE S256. Beat's API
 must allow the browser origin `https://arlequins.github.io` in
 `API_CORS_ORIGINS`.
 
+## Current production snapshot
+
+The following public endpoints were verified after the `v0.6.1` release on
+2026-08-13:
+
+| Surface | URL |
+| --- | --- |
+| GitHub Pages web app | `https://arlequins.github.io/beat-agent/` |
+| API | `https://p3akjheufygfnr54k7vhz6kria0inkun.lambda-url.ap-northeast-1.on.aws/` |
+| Beat OIDC issuer | `https://p3akjheufygfnr54k7vhz6kria0inkun.lambda-url.ap-northeast-1.on.aws/auth` |
+
+The API liveness endpoint and the Pages site returned HTTP 200 during the
+release handoff. The production API is currently deployed without a model
+provider configuration, so authentication and health checks are available but
+chat completion remains intentionally disabled. Do not put a placeholder model
+ID in the production Environment; add an approved Bedrock model ID and exact
+model ARN only after the corresponding least-privilege IAM diff has been
+reviewed through the protected infrastructure workflow.
+
 ## Failure Diagnostics
 
 Each job has a bounded timeout, and superseded pull-request validation runs are
