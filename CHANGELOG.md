@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0](https://github.com/arlequins/beat-agent/compare/v0.6.3...v0.7.0) (2026-08-13)
+
+
+### Features
+
+* configure production Nova Lite model ([#33](https://github.com/arlequins/beat-agent/issues/33)) ([df12f75](https://github.com/arlequins/beat-agent/commit/df12f752fb2ed265aed56bf3b87053a93d545cf1))
+
 ## [0.6.3](https://github.com/arlequins/beat-agent/compare/v0.6.2...v0.6.3) (2026-08-13)
 
 
