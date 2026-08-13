@@ -1,5 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { FeedbackKind } from "@arlequins/agent-core";
+import {
+  evaluateCitationPrecision,
+  type FeedbackKind,
+  type ModelUsage,
+} from "@arlequins/agent-core";
 import type { JsonObjectStore } from "./s3-json-store";
 import { ObjectAlreadyExistsError, ObjectConflictError } from "./s3-json-store";
 
@@ -33,6 +37,13 @@ type Message = {
   conversationId: string;
   createdAt: string;
   id: string;
+  metadata?: {
+    knowledgeReleaseId?: string;
+    latencyMs?: number;
+    promptVersion?: string;
+    retrievalDegraded?: boolean;
+    usage?: ModelUsage;
+  };
   model?: string;
   role: "assistant" | "system" | "user";
 };
@@ -124,7 +135,11 @@ type EvaluationRun = {
   }>;
   startedAt: string;
   status: string;
-  summary?: { averageCitationRecall: number; cases: number };
+  summary?: {
+    averageCitationPrecision?: number;
+    averageCitationRecall: number;
+    cases: number;
+  };
   trigger: "manual" | "weekly";
   workspaceId: string;
 };
@@ -210,6 +225,7 @@ function publicMessage(value: Message) {
     ...value,
     createdAt: new Date(value.createdAt),
     model: value.model ?? null,
+    ...(value.metadata ? { metadata: value.metadata } : {}),
   };
 }
 
@@ -529,6 +545,7 @@ export function createS3AgentPlatformRepository(
       input: {
         content: string;
         conversationId: string;
+        metadata?: Message["metadata"];
         model?: string;
         role: "assistant" | "system" | "user";
       },
@@ -1173,6 +1190,20 @@ export function createS3AgentPlatformRepository(
             0,
           ) / input.results.length
         : 0;
+      const averageCitationPrecision = input.results.length
+        ? input.results.reduce((sum, result) => {
+            const evaluationCase = cases.find(
+              (item) => item.id === result.caseId,
+            );
+            return (
+              sum +
+              evaluateCitationPrecision({
+                expectedChunkIds: evaluationCase?.expectedChunkIds ?? [],
+                retrievedChunkIds: result.retrievedChunkIds,
+              })
+            );
+          }, 0) / input.results.length
+        : 0;
       await mutate<EvaluationRun>(
         store,
         stateKey(actor.workspaceId, "evaluation-runs", input.runId),
@@ -1185,6 +1216,7 @@ export function createS3AgentPlatformRepository(
             results: input.results,
             status: "completed",
             summary: {
+              averageCitationPrecision,
               averageCitationRecall,
               cases: input.results.length,
             },
@@ -1192,9 +1224,14 @@ export function createS3AgentPlatformRepository(
         },
       );
       await appendEvent(actor, "evaluation.run.completed", input.runId, {
+        averageCitationPrecision,
         averageCitationRecall,
       });
-      return { averageCitationRecall, cases: input.results.length };
+      return {
+        averageCitationPrecision,
+        averageCitationRecall,
+        cases: input.results.length,
+      };
     },
     async listEvaluationRuns(actor: WorkspaceActor) {
       await assertOwner(actor);
@@ -1287,10 +1324,18 @@ export function createS3AgentPlatformRepository(
       });
       return head;
     },
-    async listKnowledgeChunks(workspaceId: string) {
+    async listKnowledgeChunks(workspaceId: string, expectedReleaseId?: string) {
       const head = await store.get<ReleaseHead>(
         `workspaces/${workspaceId}/heads/active-release.json`,
       );
+      if (expectedReleaseId === "live" && head)
+        throw new Error("Knowledge release changed during agent run");
+      if (
+        expectedReleaseId &&
+        expectedReleaseId !== "live" &&
+        head?.value.releaseId !== expectedReleaseId
+      )
+        throw new Error("Knowledge release changed during agent run");
       if (head) {
         const snapshot = await store.get<ReleaseSnapshot>(
           head.value.snapshotKey,
@@ -1300,10 +1345,21 @@ export function createS3AgentPlatformRepository(
       }
       return liveKnowledgeChunks(workspaceId);
     },
-    async listApprovedMemories(workspaceId: string) {
+    async listApprovedMemories(
+      workspaceId: string,
+      expectedReleaseId?: string,
+    ) {
       const head = await store.get<ReleaseHead>(
         `workspaces/${workspaceId}/heads/active-release.json`,
       );
+      if (expectedReleaseId === "live" && head)
+        throw new Error("Knowledge release changed during agent run");
+      if (
+        expectedReleaseId &&
+        expectedReleaseId !== "live" &&
+        head?.value.releaseId !== expectedReleaseId
+      )
+        throw new Error("Knowledge release changed during agent run");
       if (head) {
         const snapshot = await store.get<ReleaseSnapshot>(
           head.value.snapshotKey,

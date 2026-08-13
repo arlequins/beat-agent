@@ -78,6 +78,15 @@ describe("API app", () => {
     await expect(response.text()).resolves.toContain("No procedure found");
   });
 
+  it("protects the MCP endpoint with the existing OIDC session", async () => {
+    const response = await app.request("/mcp", { method: "POST" });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Unauthorized",
+    });
+  });
+
   it("hosts an executable OpenAPI document", async () => {
     const response = await app.request("/openapi.json");
     const document = (await response.json()) as {

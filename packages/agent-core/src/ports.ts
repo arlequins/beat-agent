@@ -2,22 +2,34 @@ import type {
   IndexDocumentRequest,
   KnowledgeMatch,
   Memory,
+  ModelCapabilities,
+  ModelStreamEvent,
   StreamTextRequest,
 } from "./types";
+
+export type { AgentToolPort } from "./types";
 
 export type KnowledgeSearchPort = {
   search(input: {
     query: string;
+    knowledgeReleaseId?: string;
     workspaceId: string;
   }): Promise<KnowledgeMatch[]>;
 };
 
 export type MemorySearchPort = {
-  search(input: { query: string; workspaceId: string }): Promise<Memory[]>;
+  search(input: {
+    knowledgeReleaseId?: string;
+    query: string;
+    workspaceId: string;
+  }): Promise<Memory[]>;
 };
 
 export type ModelProviderPort = {
-  streamText(input: StreamTextRequest): AsyncIterable<string>;
+  capabilities?: ModelCapabilities;
+  streamText(
+    input: StreamTextRequest,
+  ): AsyncIterable<ModelStreamEvent | string>;
 };
 
 /** Generates local or provider-hosted embeddings. Keep this separate from text generation. */

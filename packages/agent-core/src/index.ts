@@ -1,6 +1,7 @@
 export { createTextDocumentExtraction } from "./document-extraction";
-export { evaluateRetrievalCase } from "./evaluation";
+export { evaluateCitationPrecision, evaluateRetrievalCase } from "./evaluation";
 export type {
+  AgentToolPort,
   AgentWorkflowPort,
   DocumentExtractionPort,
   DocumentSourcePort,
@@ -21,8 +22,15 @@ export type {
   IndexDocumentRequest,
   KnowledgeMatch,
   Memory,
+  ModelCapabilities,
   ModelMessage,
+  ModelStreamEvent,
+  ModelUsage,
   RetrievalEvaluationCase,
   RetrievalEvaluationResult,
   StreamTextRequest,
+  ToolCall,
+  ToolDefinition,
+  ToolExecutionContext,
+  ToolResult,
 } from "./types";

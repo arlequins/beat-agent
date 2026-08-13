@@ -18,6 +18,7 @@
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
+    "@arlequins/agent-mcp": "workspace:*",
     "@arlequins/env": "workspace:*",
     "@arlequins/logger": "workspace:*",
     "@arlequins/service": "workspace:*",

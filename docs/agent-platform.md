@@ -11,7 +11,7 @@ Beat은 Arlequin 한 사람을 위한 개인 비서이자 반성적 대화 파�
 question
   -> workspace-scoped approved memory
   -> active knowledge release
-  -> Ollama or Bedrock model
+  -> Ollama or Bedrock model (+ allowlisted tools when supported)
   -> streaming text and citations
 ```
 
@@ -36,6 +36,7 @@ prefix 아래 저장한다. 모든 repository 호출은 먼저 membership을 확
 - 삭제는 tombstone
 - 운영 변경은 append-only audit event
 - Citation은 active knowledge release ID 고정
+- MCP 도구는 인증된 workspace actor를 통해서만 호출하며, 쓰기 도구는 확인 후 실행
 
 구체적인 key 구조, 동시성, release와 복구는
 [S3-primary 아키텍처](./s3-primary-architecture.md)에 정의한다.
@@ -96,7 +97,8 @@ feedback
   -> conditional active-release switch
 ```
 
-기본 release gate는 Citation recall `0.75`다.
+기본 release gate는 Citation recall `0.75`다. 평가 실행은 Citation precision도
+함께 기록해 검색 결과의 불필요한 근거가 늘어나는 회귀를 확인한다.
 
 ## 동시 실행
 

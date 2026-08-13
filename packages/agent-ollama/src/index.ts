@@ -64,7 +64,10 @@ export function createOllamaModelProvider(
   const think = options.think ?? false;
 
   return {
+    capabilities: { toolUse: false },
     async *streamText(input: StreamTextRequest) {
+      if (input.tools?.length)
+        throw new Error("Ollama provider does not support agent tools");
       const signal = AbortSignal.timeout(requestTimeoutMs);
       const response = await fetchImpl(`${baseUrl}/api/chat`, {
         method: "POST",

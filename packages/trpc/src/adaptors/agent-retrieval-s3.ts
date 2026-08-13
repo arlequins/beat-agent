@@ -45,8 +45,10 @@ export function createS3MemorySearch(
   repository: S3AgentPlatformRepository,
 ): MemorySearchPort {
   return {
-    async search({ query, workspaceId }) {
-      return (await repository.listApprovedMemories(workspaceId))
+    async search({ knowledgeReleaseId, query, workspaceId }) {
+      return (
+        await repository.listApprovedMemories(workspaceId, knowledgeReleaseId)
+      )
         .map((memory) => ({
           content: memory.content,
           id: memory.id,
@@ -69,8 +71,11 @@ export function createS3KnowledgeSearch(
   options: { embedding?: EmbeddingProviderPort } = {},
 ): KnowledgeSearchPort {
   return {
-    async search({ query, workspaceId }) {
-      const chunks = await repository.listKnowledgeChunks(workspaceId);
+    async search({ knowledgeReleaseId, query, workspaceId }) {
+      const chunks = await repository.listKnowledgeChunks(
+        workspaceId,
+        knowledgeReleaseId,
+      );
       let queryEmbedding: number[] | undefined;
       if (
         options.embedding &&
@@ -88,6 +93,7 @@ export function createS3KnowledgeSearch(
             chunkId: chunk.chunkId,
             documentId: chunk.documentId,
             label: chunk.label,
+            ...(knowledgeReleaseId ? { knowledgeReleaseId } : {}),
             ...(chunk.locator ? { locator: chunk.locator } : {}),
           },
           content: chunk.content,

@@ -24,7 +24,8 @@ describe("createOllamaModelProvider", () => {
     for await (const chunk of provider.streamText({
       messages: [{ role: "user", content: "Hi" }],
     }))
-      chunks.push(chunk);
+      if (typeof chunk === "string") chunks.push(chunk);
+      else if (chunk.type === "text-delta") chunks.push(chunk.text);
 
     expect(chunks.join("")).toBe("Hello world");
     expect(requests[0]?.url).toBe("http://127.0.0.1:11434/api/chat");

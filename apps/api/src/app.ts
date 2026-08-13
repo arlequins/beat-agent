@@ -1,3 +1,4 @@
+import { createBeatMcpHttpHandler } from "@arlequins/agent-mcp";
 import { clientEnv, serverEnv } from "@arlequins/env";
 import type { ErrorReporter, Logger, Telemetry } from "@arlequins/logger";
 import {
@@ -8,10 +9,14 @@ import {
 import type { RateLimitPort } from "@arlequins/service";
 import { AppRouter, createTRPCContext, TRPC_HTTP_PATH } from "@arlequins/trpc";
 import { streamAgentCompletion } from "@arlequins/trpc/agent-completion";
-import { completeAgentInputSchema } from "@arlequins/validators";
+import {
+  completeAgentInputSchema,
+  workspaceScopeInputSchema,
+} from "@arlequins/validators";
 import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
@@ -79,6 +84,67 @@ function handleTrpcRequest(
       });
     },
   });
+}
+
+const mcpRequestIdHeader = "x-beat-tool-call-id";
+
+async function handleMcpRequest(
+  context: Context<ApiBindings>,
+  telemetry: Telemetry,
+): Promise<Response> {
+  const trpcContext = await createTRPCContext({
+    headers: context.req.raw.headers,
+    logger: context.get("logger"),
+    telemetry,
+  });
+  const session = trpcContext.session;
+  if (!session?.user)
+    return context.json(
+      { error: "Unauthorized", requestId: context.get("requestId") },
+      401,
+    );
+
+  const workspace = workspaceScopeInputSchema.safeParse({
+    workspaceId: context.req.header("x-beat-workspace-id"),
+  });
+  if (!workspace.success)
+    return context.json(
+      {
+        error: "A valid X-Beat-Workspace-Id header is required",
+        requestId: context.get("requestId"),
+      },
+      400,
+    );
+
+  const toolCallId =
+    context.req.header(mcpRequestIdHeader) ?? context.get("requestId");
+  const confirmedToolCallIds =
+    context.req.header("x-beat-confirm-tool") === "feedback.submit"
+      ? new Set([toolCallId])
+      : undefined;
+  const handler = createBeatMcpHttpHandler({
+    context: {
+      ...(confirmedToolCallIds ? { confirmedToolCallIds } : {}),
+      requestId: toolCallId,
+      subject: session.user.subject,
+      workspaceId: workspace.data.workspaceId,
+    },
+    dependencies: {
+      authorization: {
+        async authorize({ subject, workspaceId }) {
+          if (subject !== session.user.id && subject !== session.user.subject)
+            throw new Error("MCP subject does not match the active session");
+          return { userId: session.user.id, workspaceId };
+        },
+      },
+      knowledgeSearch: trpcContext.services.knowledgeSearch,
+      memorySearch: trpcContext.services.memorySearch,
+      repository: trpcContext.services.agent,
+    },
+  });
+  // The SDK handler is intentionally created per request in stateless mode.
+  // Do not close it before Hono has finished consuming a streaming response.
+  return handler.fetch(context.req.raw);
 }
 
 export function createApiApp(options: CreateApiAppOptions = {}) {
@@ -163,9 +229,12 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
         "Authorization",
         "Content-Type",
         "Trpc-Accept",
+        "X-Beat-Confirm-Tool",
+        "X-Beat-Tool-Call-Id",
+        "X-Beat-Workspace-Id",
         "X-Request-Id",
       ],
-      allowMethods: ["GET", "POST", "OPTIONS"],
+      allowMethods: ["DELETE", "GET", "POST", "OPTIONS"],
       exposeHeaders: [
         "RateLimit-Limit",
         "RateLimit-Remaining",
@@ -177,7 +246,12 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
     }),
   );
 
-  const trpcPaths = [TRPC_HTTP_PATH, `${TRPC_HTTP_PATH}/*`, "/agent/stream"];
+  const trpcPaths = [
+    TRPC_HTTP_PATH,
+    `${TRPC_HTTP_PATH}/*`,
+    "/agent/stream",
+    "/mcp",
+  ];
   for (const path of trpcPaths) {
     app.use(
       path,
@@ -233,6 +307,8 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
     externalReadinessChecks: externalChecks,
     readinessCheck,
   });
+
+  app.all("/mcp", (context) => handleMcpRequest(context, telemetry));
 
   app.post("/agent/stream", async (context) => {
     const parsed = completeAgentInputSchema.safeParse(await context.req.json());

@@ -1,5 +1,6 @@
 import type {
   ModelProviderPort,
+  ModelStreamEvent,
   StreamTextRequest,
 } from "@arlequins/agent-core";
 
@@ -11,7 +12,9 @@ export type BedrockConversePort = {
   stream(input: {
     messages: StreamTextRequest["messages"];
     modelId: string;
-  }): AsyncIterable<string>;
+    signal?: StreamTextRequest["signal"];
+    tools?: StreamTextRequest["tools"];
+  }): AsyncIterable<ModelStreamEvent | string>;
 };
 
 export function createBedrockModelProvider(input: {
@@ -19,7 +22,13 @@ export function createBedrockModelProvider(input: {
   modelId: string;
 }): ModelProviderPort {
   return {
-    streamText: ({ messages }) =>
-      input.client.stream({ messages, modelId: input.modelId }),
+    capabilities: { toolUse: true },
+    streamText: ({ messages, signal, tools }) =>
+      input.client.stream({
+        messages,
+        modelId: input.modelId,
+        ...(signal ? { signal } : {}),
+        ...(tools ? { tools } : {}),
+      }),
   };
 }

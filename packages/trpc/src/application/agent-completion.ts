@@ -1,4 +1,4 @@
-import type { Citation } from "@arlequins/agent-core";
+import type { Citation, ModelUsage, ToolCall } from "@arlequins/agent-core";
 import { createAgentRuntime } from "@arlequins/agent-core";
 import type { AgentJobLease } from "../adaptors/agent-platform-s3";
 import type { TRPCServices } from "../context";
@@ -11,6 +11,8 @@ export type AgentCompletionInput = {
 
 export type AgentCompletionEvent =
   | { text: string; type: "delta" }
+  | { call: ToolCall; type: "tool-call" }
+  | { type: "usage"; usage: ModelUsage }
   | {
       message: NonNullable<
         Awaited<ReturnType<TRPCServices["agent"]["addMessage"]>>
@@ -33,7 +35,11 @@ export async function* streamAgentCompletion(
       kind: "chat",
     }));
   const actor = { userId, workspaceId: input.workspaceId };
+  const startedAt = Date.now();
   try {
+    const knowledgeReleaseId =
+      (await services.agent.activeRelease(input.workspaceId))?.releaseId ??
+      "live";
     await services.agent.addMessage(actor, {
       content: input.question,
       conversationId: input.conversationId,
@@ -47,9 +53,12 @@ export async function* streamAgentCompletion(
       knowledgeSearch: services.knowledgeSearch,
       memorySearch: services.memorySearch,
       model: services.model,
+      tools: services.tools,
     });
     const text: string[] = [];
     let citations: Citation[] = [];
+    let usage: ModelUsage | undefined;
+    let retrievalDegraded = false;
     for await (const event of runtime.run({
       history: history.slice(0, -1).map((message) => ({
         content: message.content,
@@ -63,10 +72,26 @@ export async function* streamAgentCompletion(
         workspaceId: input.workspaceId,
       },
       question: input.question,
+      userId,
+      knowledgeReleaseId,
+      requestId: lease.jobId,
       workspaceId: input.workspaceId,
     })) {
       if (event.type === "retrieval-complete" || event.type === "complete") {
         citations = event.citations;
+        continue;
+      }
+      if (event.type === "retrieval-degraded") {
+        retrievalDegraded = true;
+        continue;
+      }
+      if (event.type === "usage") {
+        usage = event.usage;
+        yield event;
+        continue;
+      }
+      if (event.type === "tool-call") {
+        yield event;
         continue;
       }
       if (event.type !== "text-delta") continue;
@@ -78,13 +103,17 @@ export async function* streamAgentCompletion(
     const message = await services.agent.addMessage(actor, {
       content,
       conversationId: input.conversationId,
+      metadata: {
+        knowledgeReleaseId,
+        latencyMs: Date.now() - startedAt,
+        promptVersion: "beat-assistant-v1",
+        ...(retrievalDegraded ? { retrievalDegraded: true } : {}),
+        ...(usage ? { usage } : {}),
+      },
       model: services.modelId ?? "configured-model",
       role: "assistant",
     });
     if (!message) throw new Error("Assistant message creation failed");
-    const knowledgeReleaseId =
-      (await services.agent.activeRelease(input.workspaceId))?.releaseId ??
-      "live";
     await services.agent.addMessageCitations(actor, {
       chunkIds: citations.map((citation) => citation.chunkId),
       knowledgeReleaseId,

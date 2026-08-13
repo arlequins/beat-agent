@@ -1,5 +1,6 @@
 import { createBedrockModelProvider } from "@arlequins/agent-bedrock";
 import { createTextDocumentExtraction } from "@arlequins/agent-core";
+import { createBeatMcpServer } from "@arlequins/agent-mcp";
 import {
   createOllamaEmbeddingProvider,
   createOllamaModelProvider,
@@ -68,6 +69,23 @@ export async function createTRPCContext(
         })
       : undefined;
 
+  const knowledgeSearch = createS3KnowledgeSearch(agent, { embedding });
+  const memorySearch = createS3MemorySearch(agent);
+  const tools = session
+    ? createBeatMcpServer({
+        authorization: {
+          async authorize({ subject, workspaceId }) {
+            if (subject !== session.user.id && subject !== session.user.subject)
+              throw new Error("MCP subject does not match the active session");
+            return { userId: session.user.id, workspaceId };
+          },
+        },
+        knowledgeSearch,
+        memorySearch,
+        repository: agent,
+      }).toolRegistry
+    : undefined;
+
   if (session)
     options.logger.info("auth.login.succeeded", {
       issuer: session.user.issuer,
@@ -82,12 +100,13 @@ export async function createTRPCContext(
     session,
     services: {
       agent,
-      knowledgeSearch: createS3KnowledgeSearch(agent, { embedding }),
-      memorySearch: createS3MemorySearch(agent),
+      knowledgeSearch,
+      memorySearch,
       model,
       modelId: serverEnv.BEDROCK_MODEL_ID ?? serverEnv.OLLAMA_MODEL,
       embedding,
       documentExtraction: createTextDocumentExtraction(),
+      tools,
     },
   };
 }
