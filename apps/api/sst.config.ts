@@ -23,6 +23,7 @@ export default $config({
   async run() {
     const {
       ApiDeploymentPreset,
+      clientEnv,
       LambdaEnvironment,
       resolveApiDeploymentConfig,
       serverEnv,
@@ -39,6 +40,12 @@ export default $config({
       throttleRateLimit: serverEnv.API_THROTTLE_RATE_LIMIT,
       wafEnabled: serverEnv.API_WAF_ENABLED,
     });
+    const corsOrigins = (
+      serverEnv.API_CORS_ORIGINS ?? clientEnv.NEXT_PUBLIC_SITE_URL
+    )
+      .split(",")
+      .map((origin) => origin.trim().replace(/\/$/, ""))
+      .filter(Boolean);
     const dataBucket = new aws.s3.BucketV2("AgentData", {
       bucket: `${$app.name}-${$app.stage}-data`,
       tags: {
@@ -268,7 +275,28 @@ export default $config({
 
     const api = new sst.aws.Function("Api", {
       ...handler,
-      url: router ? { router: { instance: router } } : true,
+      url: router
+        ? { router: { instance: router } }
+        : {
+            cors: {
+              allowHeaders: [
+                "Authorization",
+                "Content-Type",
+                "Trpc-Accept",
+                "X-Request-Id",
+              ],
+              allowMethods: ["GET", "POST", "OPTIONS"],
+              allowOrigins: corsOrigins,
+              exposeHeaders: [
+                "RateLimit-Limit",
+                "RateLimit-Remaining",
+                "RateLimit-Reset",
+                "Retry-After",
+                "X-Request-Id",
+              ],
+              maxAge: "1 day",
+            },
+          },
     });
 
     return { apiUrl: router?.url ?? api.url };
