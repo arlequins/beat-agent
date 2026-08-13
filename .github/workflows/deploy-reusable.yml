@@ -59,6 +59,7 @@ jobs:
       - name: Write GitHub Environment values
         env:
           DEPLOYMENT_ENV_FILE: ${{ secrets.DEPLOYMENT_ENV_FILE }}
+          API_CORS_ORIGINS: ${{ vars.API_CORS_ORIGINS }}
         run: |
           if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
             echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
@@ -66,6 +67,9 @@ jobs:
           fi
           umask 077
           printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
+          if [ -n "$API_CORS_ORIGINS" ]; then
+            printf 'API_CORS_ORIGINS=%s\n' "$API_CORS_ORIGINS" >> .env
+          fi
 
       - name: Run SST operation
         env:
