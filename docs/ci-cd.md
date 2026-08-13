@@ -18,6 +18,7 @@ release automation. Security policy and AWS trust configuration remain in
 | `Publish tagged release` | `vX.Y.Z` tag push | Re-verify the tagged source and create the GitHub Release |
 | `AWS sandbox smoke` | manual, weekly | Exercise Function URL and API Gateway sandbox endpoints |
 | `Production contract smoke` | Pages deployment, manual, daily | Verify the public Pages, API, CORS, PWA, and OIDC contracts |
+| `Production Google SSO smoke` | manual | Verify that the public Agent OIDC flow delegates authentication to Beat's Google SSO |
 | `Baseline load test` | manual | Run the k6 baseline against an approved HTTPS target |
 
 CI jobs use the shared `tooling/github/setup` action. It reads the pinned Node
@@ -183,9 +184,12 @@ deployed Pages project path, PWA manifest and service worker, callback routes,
 API liveness/readiness, Pages-origin CORS, and the Beat OIDC discovery document.
 It runs after a successful Pages deployment, daily, or manually with optional
 HTTPS URL overrides. It deliberately does not attempt an interactive login or
-send conversation content; those checks require a protected test identity and
-belong in a separate authenticated browser workflow. After the Nova Lite
-handoff, run that protected workflow with `expect_model=enabled`.
+send conversation content. Run `Google SSO production smoke` separately after
+Beat's Google client is configured; it verifies that the Agent OIDC flow reaches
+Google and uses the exact Beat `/auth/google/callback` bridge. The browser then
+uses the currently selected Google account, and Beat accepts only
+`tiret.rouge@gmail.com`. Workspace IDs and Google credentials are never stored
+in this repository's GitHub Environment.
 
 ## Failure Diagnostics
 

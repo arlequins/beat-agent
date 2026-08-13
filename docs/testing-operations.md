@@ -19,10 +19,10 @@ For file naming, mocking, and test design rules, see the
 - The production contract smoke validates the deployed Pages, API health,
   CORS, PWA, OIDC discovery, and the unauthenticated agent boundary without
   using user credentials.
-- The protected authenticated production smoke validates Beat OIDC login,
-  browser session persistence, workspace selection, and sending a chat request
-  through the deployed UI. It is manual-only and never runs with credentials
-  on pull requests.
+- The protected Google SSO production smoke validates that the deployed Agent
+  starts Beat's OIDC flow and that Beat redirects to Google's authorization
+  endpoint with an exact `/auth/google/callback` redirect. It never uses a
+  Google password or a stored workspace ID.
 - k6 baseline load tests are manual and target a dedicated non-production endpoint.
 
 Create a `sandbox` GitHub Environment and configure
@@ -49,25 +49,16 @@ Run the public production contract check manually when needed:
 gh workflow run production-smoke.yml
 ```
 
-The workflow uses the protected `production` Environment variables
-`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_OIDC_AUTHORITY`. It never prints or
-requires an access token. The authenticated workflow additionally requires a
-dedicated Beat test identity and an existing workspace:
+The workflow checks the deployed Pages URL and never prints or requires an
+access token. Run the Google SSO contract check manually:
 
 ```bash
-gh secret set PRODUCTION_AUTH_SMOKE_EMAIL --env production
-gh secret set PRODUCTION_AUTH_SMOKE_PASSWORD --env production
-gh variable set PRODUCTION_AUTH_SMOKE_WORKSPACE_ID --env production --body "workspace-id"
-gh workflow run authenticated-production-smoke.yml -f expect_model=enabled
+gh workflow run production-google-sso-smoke.yml --repo arlequins/beat-agent
 ```
 
-Enter the two secret values interactively; never put them in chat, source
-files, `DEPLOYMENT_ENV_FILE`, or workflow logs. The production model is
-configured separately through the Nova Lite handoff in
-[Bedrock production operations](./bedrock-production.md). Use
-`expect_model=enabled` only after that protected Environment payload and its
-least-privilege IAM diff have been reviewed and deployed. Before the handoff,
-`expect_model=disabled` is the expected state for the existing deployment.
+The actual Google account approval and the first Agent login are completed in
+the user's browser. Workspaces are created and listed inside the authenticated
+user's scope; no workspace ID belongs in GitHub configuration.
 
 ## Flaky-test Policy
 

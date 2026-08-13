@@ -38,8 +38,9 @@ Do not run AWS or SST commands locally. Use the trusted GitHub Actions flow:
 1. Review the infrastructure diff in `beat-sst-aws` for the single-model
    `InvokeModelWithResponseStream` permission.
 2. Approve the protected production API deployment in this repository.
-3. Run the authenticated production smoke with
-   `expect_model=enabled`.
+3. Run the Google SSO production smoke after Beat's Google OAuth client is
+   configured. The model response itself should be verified through the user
+   session in the browser; no Google credentials are placed in GitHub Actions.
 4. Confirm that the smoke response completes and that CloudWatch logs contain
    only request metadata, never prompts, completions, or the dotenv payload.
 
