@@ -79,6 +79,7 @@ describe("client OIDC", () => {
     await startLogin("/admin");
 
     expect(mocks.manager.signinRedirect).toHaveBeenCalledWith({
+      nonce: expect.any(String),
       state: { returnTo: "/admin" },
     });
   });
