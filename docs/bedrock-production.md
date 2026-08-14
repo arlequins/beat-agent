@@ -14,22 +14,24 @@ least-privilege action: `bedrock:InvokeModelWithResponseStream` on the exact ARN
 above. The API does not grant `bedrock:InvokeModel`, use a wildcard model ARN,
 or use a cross-region inference profile for this rollout.
 
-## Protected secret handoff
+## Protected environment handoff
 
-An operator with access to the repository's protected `production` Environment
-must append the two lines above to the existing `DEPLOYMENT_ENV_FILE` secret in
-`arlequins/beat-agent`:
+The full `DEPLOYMENT_ENV_FILE` remains a protected secret and must never be
+overwritten. Configure the two non-sensitive model identifiers as variables on
+the protected `production` Environment instead:
 
-1. Open **Settings → Environments → production → Environment secrets**.
-2. Edit `DEPLOYMENT_ENV_FILE` and preserve its existing dotenv entries.
-3. Add the exact `BEDROCK_MODEL_ID` and `BEDROCK_MODEL_ARN` entries once.
-4. Do not paste the payload into chat, commit it, echo it in a workflow, or put
-   either value in a `NEXT_PUBLIC_*` variable.
+1. Open **Settings → Environments → production → Environment variables**.
+2. Set `BEDROCK_MODEL_ID` to `amazon.nova-lite-v1:0`.
+3. Set `BEDROCK_MODEL_ARN` to
+   `arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-lite-v1:0`.
+4. Preserve the existing `DEPLOYMENT_ENV_FILE` secret and never put either
+   model value in a `NEXT_PUBLIC_*` variable.
 
-The values are not credentials, but the complete payload is protected because
-it also contains runtime configuration. GitHub Actions writes this secret to
-the runner with owner-only permissions, then SST passes only the model
-configuration to the API Lambda.
+The production workflow writes the complete dotenv secret first, then appends
+these two variables immediately before SST runs. It fails closed when either
+variable is missing, so a deployment cannot silently fall back to a disabled or
+different model. The values are identifiers, not credentials; the full dotenv
+payload remains protected because it also contains runtime configuration.
 
 ## Deployment and verification
 
