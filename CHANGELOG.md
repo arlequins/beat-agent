@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.1](https://github.com/arlequins/beat-agent/compare/v0.8.0...v0.8.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **auth:** include nonce in OIDC authorize request ([a3d57d0](https://github.com/arlequins/beat-agent/commit/a3d57d008d67b1c55e2e25c63cdd608f1361bc37))
+
 ## [0.8.0](https://github.com/arlequins/beat-agent/compare/v0.7.0...v0.8.0) (2026-08-13)
 
 
