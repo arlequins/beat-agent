@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.3](https://github.com/arlequins/beat-agent/compare/v0.8.2...v0.8.3) (2026-08-14)
+
+
+### Bug Fixes
+
+* **ci:** accept current Google authorization redirect ([75a6cad](https://github.com/arlequins/beat-agent/commit/75a6cade7bc513625461e4ac52e7a9cd861ae4e6))
+
 ## [0.8.2](https://github.com/arlequins/beat-agent/compare/v0.8.1...v0.8.2) (2026-08-14)
 
 
