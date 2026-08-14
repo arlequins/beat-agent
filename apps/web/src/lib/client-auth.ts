@@ -42,6 +42,7 @@ export function getUserManager(): UserManager {
 
 export function startLogin(returnTo = window.location.pathname): Promise<void> {
   return getUserManager().signinRedirect({
+    nonce: crypto.randomUUID(),
     state: { returnTo },
   });
 }
