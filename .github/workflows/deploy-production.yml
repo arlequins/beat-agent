@@ -55,6 +55,8 @@ jobs:
           API_CORS_ORIGINS: ${{ vars.API_CORS_ORIGINS }}
           OIDC_ISSUER_URL: ${{ vars.OIDC_ISSUER_URL }}
           NEXT_PUBLIC_OIDC_AUTHORITY: ${{ vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
+          BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
+          BEDROCK_MODEL_ARN: ${{ vars.BEDROCK_MODEL_ARN }}
         run: |
           if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
             echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
@@ -71,6 +73,12 @@ jobs:
           if [ -n "$NEXT_PUBLIC_OIDC_AUTHORITY" ]; then
             printf 'NEXT_PUBLIC_OIDC_AUTHORITY=%s\n' "$NEXT_PUBLIC_OIDC_AUTHORITY" >> .env
           fi
+          if [ -z "$BEDROCK_MODEL_ID" ] || [ -z "$BEDROCK_MODEL_ARN" ]; then
+            echo "Production variables BEDROCK_MODEL_ID and BEDROCK_MODEL_ARN must both be configured." >&2
+            exit 1
+          fi
+          printf 'BEDROCK_MODEL_ID=%s\n' "$BEDROCK_MODEL_ID" >> .env
+          printf 'BEDROCK_MODEL_ARN=%s\n' "$BEDROCK_MODEL_ARN" >> .env
       - name: Build API workspace dependencies
         run: pnpm turbo run build --filter=@arlequins/api...
       - name: Run SST operation

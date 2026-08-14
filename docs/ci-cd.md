@@ -113,16 +113,17 @@ Production application deployment is intentionally manual and separate from
 Release Please. Review the S3 data policy, active release, OIDC settings, the
 Nova Lite Bedrock contract, and desired traffic-shift policy before triggering
 the production workflow. The API deployment fails closed unless the protected
-`DEPLOYMENT_ENV_FILE` contains both exact values:
+`production` Environment variables contain both exact values:
 
 ```dotenv
 BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
 BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-lite-v1:0
 ```
 
-These are configuration identifiers, not credentials. Keep them in the
-protected Environment payload so the API and SST IAM policy cannot drift. The
-Lambda permission remains limited to
+These are configuration identifiers, not credentials. Keep them as protected
+Environment variables so the API and SST IAM policy cannot drift. The production
+workflow appends them after the protected `DEPLOYMENT_ENV_FILE` is written; it
+does not overwrite that full dotenv secret. The Lambda permission remains limited to
 `bedrock:InvokeModelWithResponseStream` on that single ARN.
 
 ## GitHub Pages production web
