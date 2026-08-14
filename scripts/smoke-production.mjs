@@ -138,6 +138,21 @@ if (
 }
 checks.push("api.live-and-cors-preflight");
 
+const corsResponse = await expectOk(
+  appendPath(api, "health/live"),
+  "API CORS response",
+  { headers: { Origin: webOrigin } },
+);
+const responseAllowOrigin = corsResponse.response.headers.get(
+  "access-control-allow-origin",
+);
+if (responseAllowOrigin !== webOrigin) {
+  throw new Error(
+    `API CORS response origin mismatch (expected ${webOrigin}, received ${responseAllowOrigin ?? "<none>"})`,
+  );
+}
+checks.push("api.live-cors-response");
+
 const unauthenticatedAgent = await get(appendPath(api, "agent/stream"), {
   method: "POST",
   headers: { "Content-Type": "application/json" },
