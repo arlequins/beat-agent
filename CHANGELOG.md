@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.2](https://github.com/arlequins/beat-agent/compare/v0.8.1...v0.8.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* **ci:** inject protected production Bedrock variables ([aaaf86e](https://github.com/arlequins/beat-agent/commit/aaaf86e0bd5f8c4f1f4da34ecc8638f903e42447))
+
 ## [0.8.1](https://github.com/arlequins/beat-agent/compare/v0.8.0...v0.8.1) (2026-08-14)
 
 
