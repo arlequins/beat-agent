@@ -73,13 +73,15 @@ declare const sst: {
               router: { instance: { url: string }; path?: string };
             }
           | {
-              cors?: {
-                allowHeaders?: string[];
-                allowMethods?: ("GET" | "POST")[];
-                allowOrigins?: string[];
-                exposeHeaders?: string[];
-                maxAge?: string;
-              };
+              cors?:
+                | false
+                | {
+                    allowHeaders?: string[];
+                    allowMethods?: ("GET" | "POST")[];
+                    allowOrigins?: string[];
+                    exposeHeaders?: string[];
+                    maxAge?: string;
+                  };
             };
         vpc?: {
           subnets: string[];

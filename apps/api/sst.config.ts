@@ -280,7 +280,13 @@ export default $config({
       // Hono owns CORS for local, Function URL, API Gateway, and router
       // deployments. Duplicating it in the Function URL configuration makes
       // browsers reject otherwise valid responses with two allow-origin values.
-      url: router ? { router: { instance: router } } : true,
+      url: router
+        ? { router: { instance: router } }
+        : {
+            // Hono owns CORS for the Lambda runtime. Disable the Function URL
+            // default wildcard so it cannot add a second allow-origin value.
+            cors: false,
+          },
     });
 
     return { apiUrl: router?.url ?? api.url };
