@@ -12,6 +12,11 @@ if (!webInput) {
 const web = new URL(webInput);
 if (web.protocol !== "https:") throw new Error("WEB_URL must use HTTPS");
 
+const googleAuthorizationPaths = new Set([
+  "/o/oauth2/v2/auth",
+  "/v3/signin/identifier",
+]);
+
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 try {
@@ -22,7 +27,7 @@ try {
   await page.waitForURL(
     (url) =>
       url.origin === "https://accounts.google.com" &&
-      url.pathname === "/o/oauth2/v2/auth",
+      googleAuthorizationPaths.has(url.pathname),
     { timeout: 30_000 },
   );
   const google = new URL(page.url());
