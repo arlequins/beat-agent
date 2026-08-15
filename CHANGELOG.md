@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.6](https://github.com/arlequins/beat-agent/compare/v0.8.5...v0.8.6) (2026-08-15)
+
+
+### Bug Fixes
+
+* hide internal reasoning from chat ([#50](https://github.com/arlequins/beat-agent/issues/50)) ([deeccf4](https://github.com/arlequins/beat-agent/commit/deeccf46d85055ae6ee967ad73f59d4e27335bba))
+
 ## [0.8.5](https://github.com/arlequins/beat-agent/compare/v0.8.4...v0.8.5) (2026-08-15)
 
 
