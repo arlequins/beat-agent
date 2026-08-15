@@ -9,11 +9,13 @@ import type {
 import type { AuthSession, TRPCAuth } from "@arlequins/auth";
 import type { Logger, Telemetry } from "@arlequins/logger";
 import type { S3AgentPlatformRepository } from "./adaptors/agent-platform-s3";
+import type { ModelProvider } from "./model-errors";
 
 export type TRPCServices = {
   agent: S3AgentPlatformRepository;
   model?: ModelProviderPort;
   modelId?: string;
+  modelProvider: ModelProvider;
   tools?: AgentToolPort;
   embedding?: EmbeddingProviderPort;
   documentExtraction: DocumentExtractionPort;

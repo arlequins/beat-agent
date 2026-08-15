@@ -23,6 +23,10 @@ import { TRPCError } from "@trpc/server";
 
 import { streamAgentCompletion } from "../application/agent-completion";
 import { runRetrievalEvaluation } from "../application/retrieval-evaluation";
+import {
+  modelNotConfiguredMessage,
+  modelRequestFailureMessage,
+} from "../model-errors";
 import { protectedProcedure } from "../trpc";
 
 function actor(userId: string, workspaceId: string) {
@@ -252,7 +256,7 @@ export const agentRouter = {
       if (!ctx.services.model) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: "Local model completion is not configured",
+          message: modelNotConfiguredMessage(ctx.services.modelProvider),
         });
       }
       let message:
@@ -270,7 +274,7 @@ export const agentRouter = {
         throw new TRPCError({
           code: "BAD_GATEWAY",
           cause: error,
-          message: "Local model request failed",
+          message: modelRequestFailureMessage(ctx.services.modelProvider),
         });
       }
       if (!message) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });

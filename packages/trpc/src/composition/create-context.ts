@@ -16,6 +16,7 @@ import { createAwsBedrockConversePort } from "../adaptors/bedrock-converse";
 import { deriveBeatSession } from "../adaptors/oidc-identity";
 import { createS3JsonObjectStore } from "../adaptors/s3-json-store";
 import type { CreateTRPCContextOptions, TRPCContext } from "../context";
+import type { ModelProvider } from "../model-errors";
 import {
   createDeterministicTestModelProvider,
   TEST_MODEL_ID,
@@ -76,6 +77,13 @@ export async function createTRPCContext(
             model: serverEnv.OLLAMA_MODEL,
           })
         : undefined;
+  const modelProvider: ModelProvider = testModelEnabled
+    ? "test"
+    : serverEnv.BEDROCK_MODEL_ID
+      ? "bedrock"
+      : serverEnv.OLLAMA_BASE_URL
+        ? "ollama"
+        : "none";
 
   const knowledgeSearch = createS3KnowledgeSearch(agent, { embedding });
   const memorySearch = createS3MemorySearch(agent);
@@ -111,6 +119,7 @@ export async function createTRPCContext(
       knowledgeSearch,
       memorySearch,
       model,
+      modelProvider,
       modelId:
         (testModelEnabled ? TEST_MODEL_ID : undefined) ??
         serverEnv.BEDROCK_MODEL_ID ??

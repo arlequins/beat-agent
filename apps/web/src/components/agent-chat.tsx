@@ -9,23 +9,10 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useAuth } from "~/auth/provider";
 import { env } from "~/env";
 import { useTRPC } from "~/trpc/react";
+import { streamErrorMessage } from "./agent-chat-error";
 
 function messageError(error: unknown): string {
   return error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";
-}
-
-function streamErrorMessage(error: unknown): string {
-  const message = messageError(error);
-  if (
-    message === "Local model request failed" ||
-    message === "Local model completion is not configured"
-  ) {
-    return "Ollama에 연결하지 못했습니다. `ollama serve`와 `ollama pull qwen2.5:3b`를 확인한 뒤 다시 보내세요.";
-  }
-  if (message === "응답 스트림을 시작하지 못했습니다.") {
-    return "에이전트 API에 연결하지 못했습니다. 로컬 개발 서버가 실행 중인지 확인한 뒤 다시 보내세요.";
-  }
-  return message;
 }
 
 const feedbackLabels = {
@@ -343,14 +330,25 @@ export function AgentChat() {
         for (const line of lines) {
           if (!line) continue;
           const value = JSON.parse(line) as {
+            code?: string;
             message?: string;
+            provider?: "bedrock" | "ollama" | "test" | "none";
+            requestId?: string;
             text?: string;
             type: "complete" | "delta" | "error";
           };
           if (value.type === "delta") {
             setStreamedText((text) => text + (value.text ?? ""));
           }
-          if (value.type === "error") throw new Error(value.message);
+          if (value.type === "error") {
+            const failure = new Error(value.message);
+            Object.assign(failure, {
+              code: value.code,
+              provider: value.provider,
+              requestId: value.requestId,
+            });
+            throw failure;
+          }
         }
       }
       setQuestion("");

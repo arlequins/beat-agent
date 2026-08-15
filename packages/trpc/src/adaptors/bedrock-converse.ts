@@ -8,15 +8,40 @@ import {
   type ToolConfiguration,
 } from "@aws-sdk/client-bedrock-runtime";
 
-function messageContent(message: {
-  content: string;
-  toolCalls?: Array<{ id: string; input: unknown; name: string }>;
-  toolResults?: Array<{
+type ToolNameMap = {
+  fromBedrock: Map<string, string>;
+  toBedrock: Map<string, string>;
+};
+
+/** Translate Beat's dotted MCP names at the Bedrock provider boundary. */
+function createToolNameMap(tools: ToolDefinition[] | undefined): ToolNameMap {
+  const toBedrock = new Map<string, string>();
+  const fromBedrock = new Map<string, string>();
+  for (const tool of tools ?? []) {
+    const providerName = tool.name.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const existing = fromBedrock.get(providerName);
+    if (existing && existing !== tool.name)
+      throw new Error(
+        `Bedrock tool name collision: ${existing} and ${tool.name}`,
+      );
+    toBedrock.set(tool.name, providerName);
+    fromBedrock.set(providerName, tool.name);
+  }
+  return { fromBedrock, toBedrock };
+}
+
+function messageContent(
+  message: {
     content: string;
-    id: string;
-    isError?: boolean;
-  }>;
-}) {
+    toolCalls?: Array<{ id: string; input: unknown; name: string }>;
+    toolResults?: Array<{
+      content: string;
+      id: string;
+      isError?: boolean;
+    }>;
+  },
+  toolNameMap: ToolNameMap,
+) {
   const blocks: ContentBlock[] = [
     ...(message.content
       ? ([{ text: message.content }] as unknown as ContentBlock[])
@@ -24,7 +49,7 @@ function messageContent(message: {
     ...((message.toolCalls ?? []).map((call) => ({
       toolUse: {
         input: call.input as Record<string, unknown>,
-        name: call.name,
+        name: toolNameMap.toBedrock.get(call.name) ?? call.name,
         toolUseId: call.id,
       },
     })) as unknown as ContentBlock[]),
@@ -39,14 +64,17 @@ function messageContent(message: {
   return blocks.length ? blocks : ([{ text: "" }] as unknown as ContentBlock[]);
 }
 
-function toolConfig(tools: ToolDefinition[] | undefined) {
+function toolConfig(
+  tools: ToolDefinition[] | undefined,
+  toolNameMap: ToolNameMap,
+) {
   if (!tools?.length) return undefined;
   return {
     tools: tools.map((tool) => ({
       toolSpec: {
         description: tool.description,
         inputSchema: { json: tool.inputSchema },
-        name: tool.name,
+        name: toolNameMap.toBedrock.get(tool.name) ?? tool.name,
       },
     })),
   } as unknown as ToolConfiguration;
@@ -57,22 +85,24 @@ export function createAwsBedrockConversePort(
 ): BedrockConversePort {
   return {
     async *stream({ messages, modelId, signal, tools }) {
+      const toolNameMap = createToolNameMap(tools);
       const system = messages
         .filter((message) => message.role === "system")
         .map((message) => ({ text: message.content }));
       const providerMessages: Message[] = messages
         .filter((message) => message.role !== "system")
         .map((message) => ({
-          content: messageContent(message),
+          content: messageContent(message, toolNameMap),
           role: message.role === "assistant" ? "assistant" : "user",
         }));
+      const configuredTools = toolConfig(tools, toolNameMap);
       const response = await client.send(
         new ConverseStreamCommand({
           inferenceConfig: { maxTokens: 2_048, temperature: 0.2 },
           messages: providerMessages,
           modelId,
           ...(system.length ? { system } : {}),
-          ...(toolConfig(tools) ? { toolConfig: toolConfig(tools) } : {}),
+          ...(configuredTools ? { toolConfig: configuredTools } : {}),
         }),
         signal ? { abortSignal: signal } : undefined,
       );
@@ -90,7 +120,7 @@ export function createAwsBedrockConversePort(
           pendingTools.set(index, {
             id: start.toolUseId,
             input: "",
-            name: start.name,
+            name: toolNameMap.fromBedrock.get(start.name) ?? start.name,
           });
         }
         const delta = event.contentBlockDelta?.delta?.toolUse?.input;

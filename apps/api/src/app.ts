@@ -7,7 +7,13 @@ import {
   noopErrorReporter,
 } from "@arlequins/logger";
 import type { RateLimitPort } from "@arlequins/service";
-import { AppRouter, createTRPCContext, TRPC_HTTP_PATH } from "@arlequins/trpc";
+import {
+  AppRouter,
+  createTRPCContext,
+  MODEL_REQUEST_FAILED_CODE,
+  modelRequestFailureMessage,
+  TRPC_HTTP_PATH,
+} from "@arlequins/trpc";
 import { streamAgentCompletion } from "@arlequins/trpc/agent-completion";
 import {
   completeAgentInputSchema,
@@ -372,7 +378,15 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
           context.get("logger").error("agent.stream.failed", { error });
           controller.enqueue(
             encoder.encode(
-              `${JSON.stringify({ message: "Local model request failed", type: "error" })}\n`,
+              `${JSON.stringify({
+                code: MODEL_REQUEST_FAILED_CODE,
+                message: modelRequestFailureMessage(
+                  trpcContext.services.modelProvider,
+                ),
+                provider: trpcContext.services.modelProvider,
+                requestId: context.get("requestId"),
+                type: "error",
+              })}\n`,
             ),
           );
         } finally {

@@ -37,7 +37,7 @@ describe("AWS Bedrock Converse adapter", () => {
           contentBlockStart: {
             contentBlockIndex: 0,
             start: {
-              toolUse: { name: "document.search", toolUseId: "call-1" },
+              toolUse: { name: "document_search", toolUseId: "call-1" },
             },
           },
         };
@@ -89,8 +89,63 @@ describe("AWS Bedrock Converse adapter", () => {
     expect(command).toBeDefined();
     expect((command as ConverseStreamCommand).input).toMatchObject({
       toolConfig: {
-        tools: [{ toolSpec: { name: "document.search" } }],
+        tools: [{ toolSpec: { name: "document_search" } }],
       },
+    });
+  });
+
+  it("translates assistant tool calls back to Bedrock-safe names", async () => {
+    const send = vi.fn(async (_command: unknown) => ({
+      stream: (async function* () {
+        yield { messageStop: { stopReason: "end_turn" } };
+      })(),
+    }));
+    const port = createAwsBedrockConversePort({ send } as never);
+
+    for await (const _event of port.stream({
+      messages: [
+        {
+          content: "",
+          role: "assistant",
+          toolCalls: [
+            { id: "call-1", input: { query: "MCP" }, name: "document.search" },
+          ],
+        },
+        {
+          content: "문서 결과",
+          role: "user",
+          toolResults: [
+            {
+              content: "문서 결과",
+              id: "call-1",
+              isError: false,
+              name: "document.search",
+            },
+          ],
+        },
+      ],
+      modelId: "model",
+      tools: [
+        {
+          description: "Search documents",
+          inputSchema: { type: "object" },
+          name: "document.search",
+        },
+      ],
+    })) {
+      // Consume the stream so the adapter sends the command.
+    }
+
+    const command = send.mock.calls[0]?.[0] as ConverseStreamCommand;
+    expect(command.input.messages?.[0]).toMatchObject({
+      content: [
+        {
+          toolUse: {
+            name: "document_search",
+          },
+        },
+      ],
+      role: "assistant",
     });
   });
 });
