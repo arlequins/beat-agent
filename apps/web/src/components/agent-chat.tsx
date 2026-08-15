@@ -578,10 +578,7 @@ export function AgentChat() {
           {isOwner && auditLog.data?.length ? (
             <ul className="mt-3 space-y-1 text-xs">
               {auditLog.data.slice(0, 5).map((entry) => (
-                <li
-                  className="text-muted-foreground"
-                  key={`${entry.action}-${entry.createdAt}`}
-                >
+                <li className="text-muted-foreground" key={entry.id}>
                   {entry.action} · {new Date(entry.createdAt).toLocaleString()}
                 </li>
               ))}

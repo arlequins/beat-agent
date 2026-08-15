@@ -16,6 +16,10 @@ import { createAwsBedrockConversePort } from "../adaptors/bedrock-converse";
 import { deriveBeatSession } from "../adaptors/oidc-identity";
 import { createS3JsonObjectStore } from "../adaptors/s3-json-store";
 import type { CreateTRPCContextOptions, TRPCContext } from "../context";
+import {
+  createDeterministicTestModelProvider,
+  TEST_MODEL_ID,
+} from "./test-model";
 
 function bootstrapAdministratorIdentities() {
   return new Set(
@@ -57,17 +61,21 @@ export async function createTRPCContext(
         model: serverEnv.OLLAMA_EMBEDDING_MODEL,
       })
     : undefined;
-  const model = serverEnv.BEDROCK_MODEL_ID
-    ? createBedrockModelProvider({
-        client: createAwsBedrockConversePort(),
-        modelId: serverEnv.BEDROCK_MODEL_ID,
-      })
-    : serverEnv.OLLAMA_BASE_URL
-      ? createOllamaModelProvider({
-          baseUrl: serverEnv.OLLAMA_BASE_URL,
-          model: serverEnv.OLLAMA_MODEL,
+  const testModelEnabled =
+    serverEnv.SST_STAGE === "test" && serverEnv.AGENT_TEST_MODEL;
+  const model = testModelEnabled
+    ? createDeterministicTestModelProvider()
+    : serverEnv.BEDROCK_MODEL_ID
+      ? createBedrockModelProvider({
+          client: createAwsBedrockConversePort(),
+          modelId: serverEnv.BEDROCK_MODEL_ID,
         })
-      : undefined;
+      : serverEnv.OLLAMA_BASE_URL
+        ? createOllamaModelProvider({
+            baseUrl: serverEnv.OLLAMA_BASE_URL,
+            model: serverEnv.OLLAMA_MODEL,
+          })
+        : undefined;
 
   const knowledgeSearch = createS3KnowledgeSearch(agent, { embedding });
   const memorySearch = createS3MemorySearch(agent);
@@ -103,7 +111,10 @@ export async function createTRPCContext(
       knowledgeSearch,
       memorySearch,
       model,
-      modelId: serverEnv.BEDROCK_MODEL_ID ?? serverEnv.OLLAMA_MODEL,
+      modelId:
+        (testModelEnabled ? TEST_MODEL_ID : undefined) ??
+        serverEnv.BEDROCK_MODEL_ID ??
+        serverEnv.OLLAMA_MODEL,
       embedding,
       documentExtraction: createTextDocumentExtraction(),
       tools,
