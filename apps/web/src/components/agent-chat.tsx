@@ -37,16 +37,23 @@ function MessageCitations({
   );
   if (!citations.data?.length) return null;
   return (
-    <details className="mt-3 border-t pt-3 text-xs">
-      <summary className="cursor-pointer font-medium">
-        인용 {citations.data.length}개
+    <details className="mt-4 border-t pt-3 text-xs">
+      <summary className="text-muted-foreground cursor-pointer font-medium transition-colors hover:text-foreground">
+        답변 근거 · 인용 {citations.data.length}개
       </summary>
-      <ul className="text-muted-foreground mt-2 space-y-1">
+      <ul className="text-muted-foreground mt-3 space-y-2 leading-5">
         {citations.data.map((citation) => (
-          <li key={`${citation.documentId}-${citation.ordinal}`}>
-            {citation.filename}
-            {citation.locator ? ` · ${citation.locator}` : ""}
-            {citation.content ? ` — ${citation.content.slice(0, 120)}` : ""}
+          <li
+            className="rounded-lg bg-background/70 px-3 py-2"
+            key={`${citation.documentId}-${citation.ordinal}`}
+          >
+            <p className="text-foreground font-medium">
+              {citation.filename}
+              {citation.locator ? ` · ${citation.locator}` : ""}
+            </p>
+            {citation.content ? (
+              <p className="mt-1">{citation.content.slice(0, 160)}</p>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -398,13 +405,21 @@ export function AgentChat() {
   }
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[15rem_1fr]">
-      <aside className="rounded-xl border p-3">
-        <p className="text-muted-foreground px-2 text-xs font-medium tracking-wide uppercase">
-          워크스페이스
-        </p>
+    <section className="grid min-h-[calc(100vh-10rem)] gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <aside className="bg-background/80 h-fit rounded-2xl border p-4 shadow-sm backdrop-blur lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div>
+            <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">
+              개인 공간
+            </p>
+            <p className="mt-1 text-sm font-semibold">워크스페이스</p>
+          </div>
+          <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full px-2 py-1 text-[10px] font-semibold">
+            연결됨
+          </span>
+        </div>
         <select
-          className="mt-2 h-9 w-full rounded-md border bg-background px-2 text-sm"
+          className="mt-4 h-10 w-full rounded-xl border bg-background px-3 text-sm shadow-xs outline-none transition focus:ring-2 focus:ring-ring"
           onChange={(event) => {
             setWorkspaceId(event.target.value);
             setConversationId(undefined);
@@ -418,7 +433,7 @@ export function AgentChat() {
           ))}
         </select>
         <Button
-          className="mt-4 w-full"
+          className="mt-3 h-10 w-full rounded-xl"
           disabled={createConversation.isPending}
           onClick={() =>
             createConversation.mutate({ title: "새 대화", workspaceId })
@@ -427,10 +442,13 @@ export function AgentChat() {
         >
           새 대화
         </Button>
-        <div className="mt-4 space-y-1">
+        <div className="mt-5 space-y-1">
+          <p className="text-muted-foreground px-2 pb-2 text-[11px] font-semibold tracking-[0.14em] uppercase">
+            대화
+          </p>
           {conversations.data?.map((conversation) => (
             <button
-              className={`w-full rounded-md px-2 py-2 text-left text-sm ${conversationId === conversation.id ? "bg-accent" : "hover:bg-accent/60"}`}
+              className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${conversationId === conversation.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}
               key={conversation.id}
               onClick={() => setConversationId(conversation.id)}
               type="button"
@@ -439,8 +457,8 @@ export function AgentChat() {
             </button>
           ))}
         </div>
-        <details className="mt-5 border-t pt-4">
-          <summary className="cursor-pointer text-sm font-medium">
+        <details className="mt-6 border-t pt-4">
+          <summary className="text-muted-foreground cursor-pointer text-sm font-medium transition-colors hover:text-foreground">
             로컬 지식 추가
           </summary>
           <form className="mt-3 space-y-2" onSubmit={submitDocument}>
@@ -493,7 +511,7 @@ export function AgentChat() {
               );
               return (
                 <div
-                  className="rounded-md border p-2 text-xs"
+                  className="rounded-xl border bg-background/60 p-3 text-xs"
                   key={document.id}
                 >
                   <p className="truncate font-medium">{document.filename}</p>
@@ -538,8 +556,8 @@ export function AgentChat() {
             })}
           </div>
         </details>
-        <details className="mt-5 border-t pt-4">
-          <summary className="cursor-pointer text-sm font-medium">
+        <details className="mt-6 border-t pt-4">
+          <summary className="text-muted-foreground cursor-pointer text-sm font-medium transition-colors hover:text-foreground">
             운영 현황
           </summary>
           <p className="text-muted-foreground mt-2 text-xs">
@@ -584,177 +602,252 @@ export function AgentChat() {
           ) : null}
         </details>
       </aside>
-      <div className="flex min-h-[34rem] flex-col rounded-xl border">
-        <div className="border-b px-5 py-4">
-          <h2 className="font-semibold">
-            {conversations.data?.find(
-              (conversation) => conversation.id === conversationId,
-            )?.title ?? "대화를 선택하세요"}
-          </h2>
-        </div>
-        <div className="flex-1 space-y-4 overflow-y-auto p-5">
-          {messages.data?.map((message) => (
-            <article
-              className={
-                message.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-xl bg-primary px-4 py-3 text-primary-foreground"
-                  : "mr-auto max-w-[85%] rounded-xl bg-muted px-4 py-3"
-              }
-              key={message.id}
-            >
-              <p className="whitespace-pre-wrap text-sm leading-6">
-                {message.content}
+      <div className="bg-background/80 flex min-h-[38rem] flex-col overflow-hidden rounded-2xl border shadow-sm backdrop-blur lg:h-[calc(100vh-10rem)]">
+        <div className="flex items-center justify-between gap-4 border-b px-5 py-4 sm:px-7">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="bg-primary/10 text-primary grid size-10 shrink-0 place-items-center rounded-2xl text-sm font-bold">
+              B
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
+                Beat · private conversation
               </p>
-              {message.role === "assistant" && (
-                <div className="mt-3 flex gap-2">
-                  {(
-                    Object.entries(feedbackLabels) as [FeedbackKind, string][]
-                  ).map(([kind, label]) => (
-                    <button
-                      className="text-muted-foreground text-xs hover:underline"
-                      disabled={submitFeedback.isPending}
-                      key={kind}
-                      onClick={() =>
-                        submitFeedback.mutate({
-                          kind,
-                          messageId: message.id,
-                          workspaceId,
-                        })
-                      }
-                      type="button"
-                    >
-                      {label}
-                    </button>
-                  ))}
+              <h2 className="truncate text-base font-semibold">
+                {conversations.data?.find(
+                  (conversation) => conversation.id === conversationId,
+                )?.title ?? "대화를 선택하세요"}
+              </h2>
+            </div>
+          </div>
+          <div className="text-muted-foreground hidden items-center gap-2 text-xs sm:flex">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            기록 및 기억 연결됨
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
+          <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+            {messages.data?.map((message) => (
+              <article
+                className={`flex w-full items-start gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
+                key={message.id}
+              >
+                <div
+                  className={`grid size-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${message.role === "user" ? "bg-foreground text-background" : "bg-primary/10 text-primary"}`}
+                >
+                  {message.role === "user" ? "나" : "B"}
                 </div>
-              )}
-              {message.role === "assistant" && workspaceId && (
-                <MessageCitations
-                  messageId={message.id}
-                  workspaceId={workspaceId}
-                />
-              )}
-            </article>
-          ))}
-          {isStreaming && (
-            <article className="mr-auto max-w-[85%] rounded-xl bg-muted px-4 py-3">
-              <p className="whitespace-pre-wrap text-sm leading-6">
-                {streamedText || "생성 중…"}
+                <div
+                  className={`min-w-0 max-w-[min(52rem,88%)] rounded-2xl px-4 py-3 shadow-sm sm:px-5 ${message.role === "user" ? "bg-primary text-primary-foreground rounded-tr-md" : "bg-muted/70 rounded-tl-md border"}`}
+                >
+                  <p
+                    className={`mb-1 text-[11px] font-semibold ${message.role === "user" ? "text-primary-foreground/70 text-right" : "text-muted-foreground"}`}
+                  >
+                    {message.role === "user" ? "Arlequin" : "Beat"}
+                  </p>
+                  <p className="whitespace-pre-wrap text-[15px] leading-7">
+                    {message.content}
+                  </p>
+                  {message.role === "assistant" && (
+                    <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t pt-3">
+                      {(
+                        Object.entries(feedbackLabels) as [
+                          FeedbackKind,
+                          string,
+                        ][]
+                      ).map(([kind, label]) => (
+                        <button
+                          className="text-muted-foreground text-xs transition-colors hover:text-foreground"
+                          disabled={submitFeedback.isPending}
+                          key={kind}
+                          onClick={() =>
+                            submitFeedback.mutate({
+                              kind,
+                              messageId: message.id,
+                              workspaceId,
+                            })
+                          }
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {message.role === "assistant" && workspaceId && (
+                    <MessageCitations
+                      messageId={message.id}
+                      workspaceId={workspaceId}
+                    />
+                  )}
+                </div>
+              </article>
+            ))}
+            {isStreaming && (
+              <article className="flex w-full items-start gap-3">
+                <div className="bg-primary/10 text-primary grid size-8 shrink-0 place-items-center rounded-xl text-xs font-bold">
+                  B
+                </div>
+                <div className="bg-muted/70 max-w-[min(52rem,88%)] rounded-2xl rounded-tl-md border px-4 py-3 shadow-sm sm:px-5">
+                  <p className="text-muted-foreground mb-1 text-[11px] font-semibold">
+                    Beat
+                  </p>
+                  <p className="whitespace-pre-wrap text-[15px] leading-7">
+                    {streamedText || "생성 중…"}
+                  </p>
+                </div>
+              </article>
+            )}
+            {conversationId && messages.data?.length === 0 && !isStreaming && (
+              <div className="border-muted-foreground/20 bg-muted/20 rounded-2xl border border-dashed px-6 py-12 text-center">
+                <div className="bg-primary/10 text-primary mx-auto grid size-12 place-items-center rounded-2xl text-lg font-bold">
+                  B
+                </div>
+                <p className="mt-4 font-semibold">
+                  무엇부터 함께 정리해볼까요?
+                </p>
+                <p className="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-6">
+                  코드, 일정, 문서, 고민을 편하게 적어주세요. 필요한 경우 저장된
+                  기억과 문서를 근거로 답합니다.
+                </p>
+              </div>
+            )}
+            {!conversationId && (
+              <p className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
+                왼쪽에서 새 대화를 만들어 시작하세요.
               </p>
-            </article>
-          )}
-          {!conversationId && (
-            <p className="text-muted-foreground text-sm">
-              새 대화를 만들어 시작하세요.
-            </p>
-          )}
+            )}
+          </div>
         </div>
-        <form className="border-t p-4" onSubmit={submitQuestion}>
-          <Textarea
-            aria-label="질문"
-            disabled={!conversationId || isStreaming}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="무엇을 도와드릴까요?"
-            value={question}
-          />
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-muted-foreground text-xs">
-              응답은 현재 구성된 Beat 모델에서 생성됩니다.
-            </p>
-            <Button
-              disabled={!question.trim() || !conversationId || isStreaming}
-              type="submit"
-            >
-              {isStreaming ? "생성 중…" : "보내기"}
-            </Button>
+        <form
+          className="bg-muted/20 border-t p-4 sm:p-5"
+          onSubmit={submitQuestion}
+        >
+          <div className="bg-background mx-auto max-w-4xl rounded-2xl border p-2 shadow-sm">
+            <Textarea
+              aria-label="질문"
+              className="min-h-20 resize-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:ring-0"
+              disabled={!conversationId || isStreaming}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="무엇을 도와드릴까요?"
+              value={question}
+            />
+            <div className="flex items-center justify-between gap-3 px-2 pb-1 pt-2">
+              <p className="text-muted-foreground hidden text-xs sm:block">
+                답변은 현재 구성된 Beat 모델에서 생성됩니다.
+              </p>
+              <Button
+                className="ml-auto rounded-xl px-5"
+                disabled={!question.trim() || !conversationId || isStreaming}
+                type="submit"
+              >
+                {isStreaming ? "생성 중…" : "보내기"}
+              </Button>
+            </div>
           </div>
           {streamError && (
-            <p className="text-destructive mt-3 text-sm" role="alert">
+            <p
+              className="text-destructive mx-auto mt-3 max-w-4xl text-sm"
+              role="alert"
+            >
               {streamError}
             </p>
           )}
           {feedbackNotice && (
-            <p className="text-muted-foreground mt-3 text-xs" role="status">
+            <p
+              className="text-muted-foreground mx-auto mt-3 max-w-4xl text-xs"
+              role="status"
+            >
               {feedbackNotice}
             </p>
           )}
         </form>
-        <details className="border-t px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium">
+        <details className="border-t px-5 py-4 sm:px-7">
+          <summary className="text-muted-foreground cursor-pointer text-sm font-medium transition-colors hover:text-foreground">
             기억 후보 추가
           </summary>
-          <form className="mt-3 flex gap-2" onSubmit={submitMemory}>
-            <Input
-              aria-label="기억 내용"
-              onChange={(event) => setMemoryContent(event.target.value)}
-              placeholder="예: 사용자는 한국어로 답변받기를 선호한다"
-              value={memoryContent}
-            />
-            <Button
-              disabled={!memoryContent.trim() || createMemory.isPending}
-              type="submit"
-              variant="outline"
+          <div className="mx-auto max-w-4xl">
+            <form
+              className="mt-3 flex flex-col gap-2 sm:flex-row"
+              onSubmit={submitMemory}
             >
-              저장
-            </Button>
-          </form>
-          <p className="text-muted-foreground mt-2 text-xs">
-            후보 기억은 승인 API를 거친 뒤에만 답변 문맥으로 사용됩니다.
-          </p>
-          {memories.data?.length ? (
-            <ul className="mt-3 space-y-2 text-xs">
-              {memories.data.map((memory) => (
-                <li className="rounded border p-2" key={memory.id}>
-                  <p>{memory.content}</p>
-                  <p className="text-muted-foreground mt-1">
-                    {memory.status} · 중요도 {memory.importance}
-                  </p>
-                  {isOwner && memory.status === "candidate" && workspaceId && (
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        className="text-muted-foreground hover:underline"
-                        onClick={() =>
-                          reviewMemory.mutate({
-                            memoryId: memory.id,
-                            status: "approved",
-                            workspaceId,
-                          })
-                        }
-                        type="button"
-                      >
-                        승인
-                      </button>
-                      <button
-                        className="text-muted-foreground hover:underline"
-                        onClick={() =>
-                          reviewMemory.mutate({
-                            memoryId: memory.id,
-                            status: "rejected",
-                            workspaceId,
-                          })
-                        }
-                        type="button"
-                      >
-                        거절
-                      </button>
-                      <button
-                        className="text-destructive hover:underline"
-                        onClick={() =>
-                          deleteMemory.mutate({
-                            memoryId: memory.id,
-                            workspaceId,
-                          })
-                        }
-                        type="button"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+              <Input
+                aria-label="기억 내용"
+                onChange={(event) => setMemoryContent(event.target.value)}
+                placeholder="예: 사용자는 한국어로 답변받기를 선호한다"
+                value={memoryContent}
+              />
+              <Button
+                className="sm:shrink-0"
+                disabled={!memoryContent.trim() || createMemory.isPending}
+                type="submit"
+                variant="outline"
+              >
+                저장
+              </Button>
+            </form>
+            <p className="text-muted-foreground mt-2 text-xs">
+              후보 기억은 승인 API를 거친 뒤에만 답변 문맥으로 사용됩니다.
+            </p>
+            {memories.data?.length ? (
+              <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                {memories.data.map((memory) => (
+                  <li
+                    className="rounded-xl border bg-background/60 p-3"
+                    key={memory.id}
+                  >
+                    <p>{memory.content}</p>
+                    <p className="text-muted-foreground mt-1">
+                      {memory.status} · 중요도 {memory.importance}
+                    </p>
+                    {isOwner &&
+                      memory.status === "candidate" &&
+                      workspaceId && (
+                        <div className="mt-2 flex gap-2">
+                          <button
+                            className="text-muted-foreground hover:underline"
+                            onClick={() =>
+                              reviewMemory.mutate({
+                                memoryId: memory.id,
+                                status: "approved",
+                                workspaceId,
+                              })
+                            }
+                            type="button"
+                          >
+                            승인
+                          </button>
+                          <button
+                            className="text-muted-foreground hover:underline"
+                            onClick={() =>
+                              reviewMemory.mutate({
+                                memoryId: memory.id,
+                                status: "rejected",
+                                workspaceId,
+                              })
+                            }
+                            type="button"
+                          >
+                            거절
+                          </button>
+                          <button
+                            className="text-destructive hover:underline"
+                            onClick={() =>
+                              deleteMemory.mutate({
+                                memoryId: memory.id,
+                                workspaceId,
+                              })
+                            }
+                            type="button"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </details>
       </div>
     </section>
