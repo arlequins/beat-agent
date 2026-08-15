@@ -1071,6 +1071,7 @@ export function createS3AgentPlatformRepository(
         .map((event) => ({
           action: event.action,
           createdAt: new Date(event.createdAt),
+          id: event.id,
           metadata: event.metadata ?? null,
           subjectId: event.subjectId ?? null,
         }));

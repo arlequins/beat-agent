@@ -109,6 +109,11 @@ export const serverEnv = createEnv({
     OLLAMA_MODEL: z.string().min(1).optional(),
     /** Pulled local embedding model used by document retrieval. */
     OLLAMA_EMBEDDING_MODEL: z.string().min(1).optional(),
+    /** Enable the deterministic model only for the test-stage E2E profile. */
+    AGENT_TEST_MODEL: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
   },
   runtimeEnv: {
     SST_STAGE: process.env.SST_STAGE,
@@ -155,6 +160,7 @@ export const serverEnv = createEnv({
     OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
     OLLAMA_MODEL: process.env.OLLAMA_MODEL,
     OLLAMA_EMBEDDING_MODEL: process.env.OLLAMA_EMBEDDING_MODEL,
+    AGENT_TEST_MODEL: process.env.AGENT_TEST_MODEL,
   },
   emptyStringAsUndefined: true,
   skipValidation: skipEnvValidation,

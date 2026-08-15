@@ -13,8 +13,14 @@ For file naming, mocking, and test design rules, see the
 - Playwright creates an isolated MinIO bucket, exercises the real S3-compatible
   adapter, and removes the local stack after the suite.
 - Playwright runs OIDC login persistence, workspace/document/memory journeys,
-  PWA metadata and private-route cache boundaries, visual regression, and
-  accessibility checks on desktop and mobile Chromium.
+  question submission, deterministic assistant response persistence, citation
+  rendering, feedback recording, PWA metadata and private-route cache
+  boundaries, visual regression, and accessibility checks on desktop and
+  mobile Chromium.
+- The chat journey uses `AGENT_TEST_MODEL=true` only in the isolated
+  `SST_STAGE=test` E2E profile. It never reaches a deployed Lambda and avoids
+  model-provider cost while still exercising the real S3, OIDC, API, and UI
+  boundaries.
 - AWS sandbox smoke tests validate both deployment presets on a schedule and on demand.
 - The production contract smoke validates the deployed Pages, API health,
   CORS, PWA, OIDC discovery, and the unauthenticated agent boundary without
