@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.5](https://github.com/arlequins/beat-agent/compare/v0.8.4...v0.8.5) (2026-08-15)
+
+
+### Bug Fixes
+
+* make Bedrock tool calls compatible ([#48](https://github.com/arlequins/beat-agent/issues/48)) ([8ea6371](https://github.com/arlequins/beat-agent/commit/8ea637156f54db10f6a8e59f5e5d3fa264bf503f))
+
 ## [0.8.4](https://github.com/arlequins/beat-agent/compare/v0.8.3...v0.8.4) (2026-08-14)
 
 
