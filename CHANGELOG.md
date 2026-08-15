@@ -2,6 +2,14 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.4](https://github.com/arlequins/beat-agent/compare/v0.8.3...v0.8.4) (2026-08-14)
+
+
+### Bug Fixes
+
+* **api:** avoid duplicate production CORS headers ([2a8a3af](https://github.com/arlequins/beat-agent/commit/2a8a3af5554036123e8c51a414b14127f819e6d1))
+* **api:** disable Function URL default CORS ([f301d17](https://github.com/arlequins/beat-agent/commit/f301d17528077c13c558c5122bd2742847836387))
+
 ## [0.8.3](https://github.com/arlequins/beat-agent/compare/v0.8.2...v0.8.3) (2026-08-14)
 
 
