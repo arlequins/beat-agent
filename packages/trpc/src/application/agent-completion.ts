@@ -1,5 +1,10 @@
-import type { Citation, ModelUsage, ToolCall } from "@arlequins/agent-core";
-import { createAgentRuntime } from "@arlequins/agent-core";
+import {
+  type Citation,
+  createAgentRuntime,
+  createHiddenThoughtFilter,
+  type ModelUsage,
+  type ToolCall,
+} from "@arlequins/agent-core";
 import type { AgentJobLease } from "../adaptors/agent-platform-s3";
 import type { TRPCServices } from "../context";
 
@@ -56,6 +61,7 @@ export async function* streamAgentCompletion(
       tools: services.tools,
     });
     const text: string[] = [];
+    const hiddenThoughtFilter = createHiddenThoughtFilter();
     let citations: Citation[] = [];
     let usage: ModelUsage | undefined;
     let retrievalDegraded = false;
@@ -67,7 +73,7 @@ export async function* streamAgentCompletion(
       profile: {
         id: "beat",
         instructions:
-          "You are Beat, Arlequin's private personal assistant. Reply in Korean unless Arlequin asks for another language. Be warm, concise, and practical. Use approved memory and retrieved documents only as contextual evidence, cite uncertainty rather than inventing facts, and protect privacy. For reflective or counseling-style conversations, listen carefully and offer supportive questions or small next steps; never diagnose, claim professional authority, or replace emergency or clinical care.",
+          "You are Beat, Arlequin's private personal assistant. Reply in Korean unless Arlequin asks for another language. Be warm, concise, and practical. Use approved memory and retrieved documents only as contextual evidence, cite uncertainty rather than inventing facts, and protect privacy. For reflective or counseling-style conversations, listen carefully and offer supportive questions or small next steps; never diagnose, claim professional authority, or replace emergency or clinical care. Return only the final answer for the user. Never reveal chain-of-thought or internal reasoning, and never emit <thinking>, <think>, or <analysis> tags.",
         name: "Beat",
         workspaceId: input.workspaceId,
       },
@@ -95,8 +101,15 @@ export async function* streamAgentCompletion(
         continue;
       }
       if (event.type !== "text-delta") continue;
-      text.push(event.text);
-      yield { text: event.text, type: "delta" };
+      const safeText = hiddenThoughtFilter.push(event.text);
+      if (!safeText) continue;
+      text.push(safeText);
+      yield { text: safeText, type: "delta" };
+    }
+    const trailingText = hiddenThoughtFilter.flush();
+    if (trailingText) {
+      text.push(trailingText);
+      yield { text: trailingText, type: "delta" };
     }
     const content = text.join("").trim();
     if (!content) throw new Error("Model returned no text");
@@ -106,7 +119,7 @@ export async function* streamAgentCompletion(
       metadata: {
         knowledgeReleaseId,
         latencyMs: Date.now() - startedAt,
-        promptVersion: "beat-assistant-v1",
+        promptVersion: "beat-assistant-v2",
         ...(retrievalDegraded ? { retrievalDegraded: true } : {}),
         ...(usage ? { usage } : {}),
       },

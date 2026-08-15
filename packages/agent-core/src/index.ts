@@ -1,5 +1,6 @@
 export { createTextDocumentExtraction } from "./document-extraction";
 export { evaluateCitationPrecision, evaluateRetrievalCase } from "./evaluation";
+export { createHiddenThoughtFilter } from "./hidden-thought-filter";
 export type {
   AgentToolPort,
   AgentWorkflowPort,

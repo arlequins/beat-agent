@@ -160,6 +160,30 @@ describe("streamAgentCompletion", () => {
     expect(addMessage).toHaveBeenCalledOnce();
   });
 
+  it("does not stream or persist hidden reasoning tags", async () => {
+    const { addMessage, services } = createServices({
+      assistantMessage: {
+        content: "최종 답변",
+        id: "message-assistant",
+        role: "assistant",
+      },
+      chunks: ["<thinking>내부 계획</thinking>", "최종 답변"],
+    });
+
+    await expect(collect(services)).resolves.toEqual([
+      { text: "최종 답변", type: "delta" },
+      expect.objectContaining({
+        message: expect.objectContaining({ content: "최종 답변" }),
+        type: "complete",
+      }),
+    ]);
+    expect(addMessage).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({ content: "최종 답변" }),
+    );
+  });
+
   it("requires the assistant message to be durably created", async () => {
     const { addMessageCitations, services } = createServices({
       assistantMessage: null,
