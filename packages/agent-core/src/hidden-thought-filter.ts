@@ -1,5 +1,4 @@
-const OPEN_TAG = /<(?:thinking|think|analysis)(?:\s[^>]*)?>/i;
-const CLOSE_TAG = /<\/(?:thinking|think|analysis)\s*>/i;
+const HIDDEN_TAG_NAMES = ["thinking", "think", "analysis"];
 const TAG_PREFIXES = [
   "<thinking",
   "<think",
@@ -19,6 +18,33 @@ function pendingTagStart(value: string): number {
   return value.length;
 }
 
+function isWhitespace(value: string | undefined): boolean {
+  return value === " " || value === "\t" || value === "\r" || value === "\n";
+}
+
+function findHiddenTag(
+  value: string,
+  closing: boolean,
+): { index: number; length: number } | undefined {
+  const lower = value.toLowerCase();
+  const marker = closing ? "</" : "<";
+  let searchFrom = 0;
+  while (true) {
+    const index = lower.indexOf(marker, searchFrom);
+    if (index < 0) return undefined;
+    for (const name of HIDDEN_TAG_NAMES) {
+      const nameStart = index + marker.length;
+      if (!lower.startsWith(name, nameStart)) continue;
+      const boundary = value[nameStart + name.length];
+      if (boundary !== ">" && !isWhitespace(boundary)) continue;
+      const end = lower.indexOf(">", nameStart + name.length);
+      if (end < 0) return undefined;
+      return { index, length: end + 1 - index };
+    }
+    searchFrom = index + marker.length;
+  }
+}
+
 /** Removes model-internal reasoning tags without breaking streamed output. */
 export function createHiddenThoughtFilter() {
   let buffer = "";
@@ -30,20 +56,20 @@ export function createHiddenThoughtFilter() {
       let output = "";
       while (buffer) {
         if (hidden) {
-          const closing = CLOSE_TAG.exec(buffer);
+          const closing = findHiddenTag(buffer, true);
           if (!closing) {
             buffer = buffer.slice(pendingTagStart(buffer));
             break;
           }
-          buffer = buffer.slice(closing.index + closing[0].length);
+          buffer = buffer.slice(closing.index + closing.length);
           hidden = false;
           continue;
         }
 
-        const opening = OPEN_TAG.exec(buffer);
+        const opening = findHiddenTag(buffer, false);
         if (opening) {
           output += buffer.slice(0, opening.index);
-          buffer = buffer.slice(opening.index + opening[0].length);
+          buffer = buffer.slice(opening.index + opening.length);
           hidden = true;
           continue;
         }
