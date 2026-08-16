@@ -13,8 +13,8 @@ const e2eEnv = Object.fromEntries(
     }),
 );
 
-Object.assign(process.env, e2eEnv);
-const webServerEnv = { ...process.env, ...e2eEnv };
+const webServerEnv = { ...e2eEnv, ...process.env };
+Object.assign(process.env, webServerEnv);
 
 export default defineConfig({
   expect: {
