@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import net from "node:net";
 
 const e2eEnv = {
   ...process.env,
@@ -15,6 +16,22 @@ const e2eEnv = {
       }),
   ),
 };
+
+const minioPort = await new Promise((resolve, reject) => {
+  const server = net.createServer();
+  server.once("error", reject);
+  server.listen(0, "127.0.0.1", () => {
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      reject(new Error("Unable to allocate an E2E MinIO port"));
+      return;
+    }
+    server.close(() => resolve(address.port));
+  });
+});
+
+e2eEnv.E2E_MINIO_PORT = String(minioPort);
+e2eEnv.S3_AGENT_ENDPOINT = `http://127.0.0.1:${minioPort}`;
 
 const composeArgs = [
   "compose",

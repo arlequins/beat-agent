@@ -6,7 +6,7 @@ services:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-beat-e2e}
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-beat-e2e-secret}
     ports:
-      - "59002:9000"
+      - "${E2E_MINIO_PORT:-59002}:9000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 2s
