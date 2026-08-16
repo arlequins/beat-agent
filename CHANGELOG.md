@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.0](https://github.com/arlequins/beat-agent/compare/v0.8.6...v0.9.0) (2026-08-16)
+
+
+### Features
+
+* widen Beat chat layout ([#52](https://github.com/arlequins/beat-agent/issues/52)) ([aad1c82](https://github.com/arlequins/beat-agent/commit/aad1c8258b332723603d03a7661e20e1865e8b41))
+
 ## [0.8.6](https://github.com/arlequins/beat-agent/compare/v0.8.5...v0.8.6) (2026-08-15)
 
 
