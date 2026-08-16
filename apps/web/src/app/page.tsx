@@ -9,15 +9,21 @@ import { PwaInstall } from "~/components/pwa-install";
 export default function HomePage() {
   const { user } = useAuth();
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f5f7ff_0%,transparent_38%),var(--background)] dark:bg-[radial-gradient(circle_at_top,#171827_0%,transparent_38%),var(--background)]">
+    <main
+      className={
+        user
+          ? "min-h-screen bg-background"
+          : "min-h-screen bg-[radial-gradient(circle_at_top,#f5f7ff_0%,transparent_38%),var(--background)] dark:bg-[radial-gradient(circle_at_top,#171827_0%,transparent_38%),var(--background)]"
+      }
+    >
       <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-5">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
           <div className="flex items-center gap-3">
             <div className="bg-primary text-primary-foreground grid size-10 place-items-center rounded-2xl text-sm font-bold shadow-sm">
               B
             </div>
             <div>
-              <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.18em] uppercase">
+              <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
                 Arlequin&apos;s private assistant
               </p>
               <h1 className="text-lg font-semibold tracking-tight">Beat</h1>

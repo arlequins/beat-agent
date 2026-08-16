@@ -405,21 +405,21 @@ export function AgentChat() {
   }
 
   return (
-    <section className="grid min-h-[calc(100vh-10rem)] gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <aside className="bg-background/80 h-fit rounded-2xl border p-4 shadow-sm backdrop-blur lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-        <div className="flex items-center justify-between gap-3 px-1">
+    <section className="grid min-h-[calc(100vh-9rem)] gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <aside className="bg-muted/30 h-fit rounded-2xl p-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        <div className="flex items-center justify-between gap-3 px-2 py-1">
           <div>
             <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">
               개인 공간
             </p>
-            <p className="mt-1 text-sm font-semibold">워크스페이스</p>
+            <p className="mt-1 text-sm font-semibold">내 대화</p>
           </div>
           <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full px-2 py-1 text-[10px] font-semibold">
             연결됨
           </span>
         </div>
         <select
-          className="mt-4 h-10 w-full rounded-xl border bg-background px-3 text-sm shadow-xs outline-none transition focus:ring-2 focus:ring-ring"
+          className="mt-4 h-10 w-full rounded-xl border-0 bg-background px-3 text-sm shadow-xs outline-none transition focus:ring-2 focus:ring-ring"
           onChange={(event) => {
             setWorkspaceId(event.target.value);
             setConversationId(undefined);
@@ -448,7 +448,7 @@ export function AgentChat() {
           </p>
           {conversations.data?.map((conversation) => (
             <button
-              className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${conversationId === conversation.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}
+              className={`w-full truncate rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${conversationId === conversation.id ? "bg-background text-foreground font-medium shadow-xs" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`}
               key={conversation.id}
               onClick={() => setConversationId(conversation.id)}
               type="button"
@@ -511,7 +511,7 @@ export function AgentChat() {
               );
               return (
                 <div
-                  className="rounded-xl border bg-background/60 p-3 text-xs"
+                  className="rounded-lg bg-background/70 p-3 text-xs"
                   key={document.id}
                 >
                   <p className="truncate font-medium">{document.filename}</p>
@@ -602,17 +602,17 @@ export function AgentChat() {
           ) : null}
         </details>
       </aside>
-      <div className="bg-background/80 flex min-h-[38rem] flex-col overflow-hidden rounded-2xl border shadow-sm backdrop-blur lg:h-[calc(100vh-10rem)]">
-        <div className="flex items-center justify-between gap-4 border-b px-5 py-4 sm:px-7">
+      <div className="flex min-h-[calc(100vh-9rem)] min-w-0 flex-col lg:h-[calc(100vh-9rem)]">
+        <div className="flex items-center justify-between gap-4 border-b px-1 pb-4 sm:px-2">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="bg-primary/10 text-primary grid size-10 shrink-0 place-items-center rounded-2xl text-sm font-bold">
+            <div className="bg-primary text-primary-foreground grid size-8 shrink-0 place-items-center rounded-xl text-xs font-bold shadow-sm">
               B
             </div>
             <div className="min-w-0">
-              <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">
-                Beat · private conversation
+              <p className="text-muted-foreground text-[11px] font-medium tracking-[0.08em] uppercase">
+                개인 대화
               </p>
-              <h2 className="truncate text-base font-semibold">
+              <h2 className="truncate text-sm font-semibold sm:text-base">
                 {conversations.data?.find(
                   (conversation) => conversation.id === conversationId,
                 )?.title ?? "대화를 선택하세요"}
@@ -621,34 +621,29 @@ export function AgentChat() {
           </div>
           <div className="text-muted-foreground hidden items-center gap-2 text-xs sm:flex">
             <span className="size-2 rounded-full bg-emerald-500" />
-            기록 및 기억 연결됨
+            기록 연결됨
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
-          <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <div className="flex-1 overflow-y-auto px-1 py-8 sm:px-2 sm:py-10">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
             {messages.data?.map((message) => (
               <article
-                className={`flex w-full items-start gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
+                className={`group flex w-full items-start gap-3 ${message.role === "user" ? "justify-end" : ""}`}
                 key={message.id}
               >
+                {message.role === "assistant" && (
+                  <div className="bg-primary text-primary-foreground mt-1 grid size-7 shrink-0 place-items-center rounded-lg text-[10px] font-bold shadow-sm">
+                    B
+                  </div>
+                )}
                 <div
-                  className={`grid size-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${message.role === "user" ? "bg-foreground text-background" : "bg-primary/10 text-primary"}`}
+                  className={`min-w-0 ${message.role === "user" ? "bg-muted max-w-[85%] rounded-3xl px-4 py-3" : "max-w-[calc(100%-2.5rem)]"}`}
                 >
-                  {message.role === "user" ? "나" : "B"}
-                </div>
-                <div
-                  className={`min-w-0 max-w-[min(52rem,88%)] rounded-2xl px-4 py-3 shadow-sm sm:px-5 ${message.role === "user" ? "bg-primary text-primary-foreground rounded-tr-md" : "bg-muted/70 rounded-tl-md border"}`}
-                >
-                  <p
-                    className={`mb-1 text-[11px] font-semibold ${message.role === "user" ? "text-primary-foreground/70 text-right" : "text-muted-foreground"}`}
-                  >
-                    {message.role === "user" ? "Arlequin" : "Beat"}
-                  </p>
                   <p className="whitespace-pre-wrap text-[15px] leading-7">
                     {message.content}
                   </p>
                   {message.role === "assistant" && (
-                    <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t pt-3">
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 opacity-70 transition-opacity group-hover:opacity-100">
                       {(
                         Object.entries(feedbackLabels) as [
                           FeedbackKind,
@@ -684,13 +679,10 @@ export function AgentChat() {
             ))}
             {isStreaming && (
               <article className="flex w-full items-start gap-3">
-                <div className="bg-primary/10 text-primary grid size-8 shrink-0 place-items-center rounded-xl text-xs font-bold">
+                <div className="bg-primary text-primary-foreground mt-1 grid size-7 shrink-0 place-items-center rounded-lg text-[10px] font-bold shadow-sm">
                   B
                 </div>
-                <div className="bg-muted/70 max-w-[min(52rem,88%)] rounded-2xl rounded-tl-md border px-4 py-3 shadow-sm sm:px-5">
-                  <p className="text-muted-foreground mb-1 text-[11px] font-semibold">
-                    Beat
-                  </p>
+                <div className="max-w-[calc(100%-2.5rem)]">
                   <p className="whitespace-pre-wrap text-[15px] leading-7">
                     {streamedText || "생성 중…"}
                   </p>
@@ -698,12 +690,12 @@ export function AgentChat() {
               </article>
             )}
             {conversationId && messages.data?.length === 0 && !isStreaming && (
-              <div className="border-muted-foreground/20 bg-muted/20 rounded-2xl border border-dashed px-6 py-12 text-center">
-                <div className="bg-primary/10 text-primary mx-auto grid size-12 place-items-center rounded-2xl text-lg font-bold">
+              <div className="px-6 py-16 text-center">
+                <div className="bg-primary text-primary-foreground mx-auto grid size-12 place-items-center rounded-2xl text-lg font-bold shadow-sm">
                   B
                 </div>
-                <p className="mt-4 font-semibold">
-                  무엇부터 함께 정리해볼까요?
+                <p className="mt-5 text-2xl font-semibold tracking-tight">
+                  무엇을 도와드릴까요?
                 </p>
                 <p className="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-6">
                   코드, 일정, 문서, 고민을 편하게 적어주세요. 필요한 경우 저장된
@@ -719,10 +711,10 @@ export function AgentChat() {
           </div>
         </div>
         <form
-          className="bg-muted/20 border-t p-4 sm:p-5"
+          className="border-t bg-background/80 px-1 py-4 backdrop-blur sm:px-2 sm:py-5"
           onSubmit={submitQuestion}
         >
-          <div className="bg-background mx-auto max-w-4xl rounded-2xl border p-2 shadow-sm">
+          <div className="bg-background mx-auto max-w-3xl rounded-3xl border p-2 shadow-lg shadow-black/5">
             <Textarea
               aria-label="질문"
               className="min-h-20 resize-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:ring-0"
@@ -736,7 +728,7 @@ export function AgentChat() {
                 답변은 현재 구성된 Beat 모델에서 생성됩니다.
               </p>
               <Button
-                className="ml-auto rounded-xl px-5"
+                className="ml-auto rounded-full px-5"
                 disabled={!question.trim() || !conversationId || isStreaming}
                 type="submit"
               >
@@ -746,7 +738,7 @@ export function AgentChat() {
           </div>
           {streamError && (
             <p
-              className="text-destructive mx-auto mt-3 max-w-4xl text-sm"
+              className="text-destructive mx-auto mt-3 max-w-3xl text-sm"
               role="alert"
             >
               {streamError}
@@ -754,18 +746,18 @@ export function AgentChat() {
           )}
           {feedbackNotice && (
             <p
-              className="text-muted-foreground mx-auto mt-3 max-w-4xl text-xs"
+              className="text-muted-foreground mx-auto mt-3 max-w-3xl text-xs"
               role="status"
             >
               {feedbackNotice}
             </p>
           )}
         </form>
-        <details className="border-t px-5 py-4 sm:px-7">
+        <details className="border-t px-1 py-4 sm:px-2">
           <summary className="text-muted-foreground cursor-pointer text-sm font-medium transition-colors hover:text-foreground">
             기억 후보 추가
           </summary>
-          <div className="mx-auto max-w-4xl">
+          <div className="mx-auto max-w-3xl">
             <form
               className="mt-3 flex flex-col gap-2 sm:flex-row"
               onSubmit={submitMemory}
@@ -792,7 +784,7 @@ export function AgentChat() {
               <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
                 {memories.data.map((memory) => (
                   <li
-                    className="rounded-xl border bg-background/60 p-3"
+                    className="rounded-xl border bg-muted/30 p-3"
                     key={memory.id}
                   >
                     <p>{memory.content}</p>
