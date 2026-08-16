@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.0](https://github.com/arlequins/beat-agent/compare/v0.9.0...v0.10.0) (2026-08-16)
+
+
+### Features
+
+* align chat UI with ChatGPT ([#54](https://github.com/arlequins/beat-agent/issues/54)) ([9d6be1f](https://github.com/arlequins/beat-agent/commit/9d6be1f04e5d678549da71de8b6c067fb23b5bbf))
+
 ## [0.9.0](https://github.com/arlequins/beat-agent/compare/v0.8.6...v0.9.0) (2026-08-16)
 
 
