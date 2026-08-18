@@ -29,6 +29,8 @@
     "oidc-client-ts": "catalog:",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "superjson": "catalog:",
     "zod": "catalog:"
   },
