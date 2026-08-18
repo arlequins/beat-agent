@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.11.0](https://github.com/arlequins/beat-agent/compare/v0.10.0...v0.11.0) (2026-08-18)
+
+
+### Features
+
+* improve chat composer and response rendering ([8fbbb6d](https://github.com/arlequins/beat-agent/commit/8fbbb6d1d9c8d73cd991cfc84ab9da008866fbe5))
+
 ## [0.10.0](https://github.com/arlequins/beat-agent/compare/v0.9.0...v0.10.0) (2026-08-16)
 
 
