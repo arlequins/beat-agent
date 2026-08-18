@@ -25,6 +25,53 @@ export type AgentCompletionEvent =
       type: "complete";
     };
 
+function normalizeForComparison(value: string): string {
+  return value.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+}
+
+/** Remove only adjacent, identical Markdown blocks produced twice by a model. */
+export function collapseRepeatedParagraphs(value: string): string {
+  const normalizedValue = value.replace(/\r\n/g, "\n").trim();
+  if (!normalizedValue) return "";
+
+  const blocks: string[] = [];
+  const current: string[] = [];
+  let fenceMarker: string | undefined;
+  for (const line of normalizedValue.split("\n")) {
+    const fence = line.match(/^\s*(`{3,}|~{3,})/u)?.[1];
+    if (!fenceMarker && !line.trim() && current.length > 0) {
+      blocks.push(current.join("\n").trim());
+      current.length = 0;
+    }
+    current.push(line);
+    if (fence) {
+      if (!fenceMarker) {
+        fenceMarker = fence;
+      } else if (
+        fence[0] === fenceMarker[0] &&
+        fence.length >= fenceMarker.length
+      ) {
+        fenceMarker = undefined;
+      }
+    }
+  }
+  if (current.length > 0) blocks.push(current.join("\n").trim());
+
+  const result: string[] = [];
+  for (const block of blocks) {
+    if (!block) continue;
+    const previous = result.at(-1);
+    if (
+      previous &&
+      normalizeForComparison(previous) === normalizeForComparison(block)
+    ) {
+      continue;
+    }
+    result.push(block);
+  }
+  return result.join("\n\n");
+}
+
 /** A single persistence path for normal tRPC responses and incremental HTTP responses. */
 export async function* streamAgentCompletion(
   services: TRPCServices,
@@ -73,7 +120,7 @@ export async function* streamAgentCompletion(
       profile: {
         id: "beat",
         instructions:
-          "You are Beat, Arlequin's private personal assistant. Reply in Korean unless Arlequin asks for another language. Be warm, concise, and practical. Use approved memory and retrieved documents only as contextual evidence, cite uncertainty rather than inventing facts, and protect privacy. For reflective or counseling-style conversations, listen carefully and offer supportive questions or small next steps; never diagnose, claim professional authority, or replace emergency or clinical care. Return only the final answer for the user. Never reveal chain-of-thought or internal reasoning, and never emit <thinking>, <think>, or <analysis> tags.",
+          "You are Beat, Arlequin's private personal assistant. Reply in Korean unless Arlequin asks for another language. Be warm, concise, and practical. Use approved memory and retrieved documents only as contextual evidence, cite uncertainty rather than inventing facts, and protect privacy. For reflective or counseling-style conversations, listen carefully and offer supportive questions or small next steps; never diagnose, claim professional authority, or replace emergency or clinical care. Answer the user's question once. Do not narrate internal verification, mention duplicate answers, or repeat the same sentence or paragraph. If information is uncertain, state that once and ask at most one concise follow-up question. Return only the final answer for the user. Never reveal chain-of-thought or internal reasoning, and never emit <thinking>, <think>, or <analysis> tags.",
         name: "Beat",
         workspaceId: input.workspaceId,
       },
@@ -111,7 +158,7 @@ export async function* streamAgentCompletion(
       text.push(trailingText);
       yield { text: trailingText, type: "delta" };
     }
-    const content = text.join("").trim();
+    const content = collapseRepeatedParagraphs(text.join(""));
     if (!content) throw new Error("Model returned no text");
     const message = await services.agent.addMessage(actor, {
       content,
@@ -119,7 +166,7 @@ export async function* streamAgentCompletion(
       metadata: {
         knowledgeReleaseId,
         latencyMs: Date.now() - startedAt,
-        promptVersion: "beat-assistant-v2",
+        promptVersion: "beat-assistant-v3",
         ...(retrievalDegraded ? { retrievalDegraded: true } : {}),
         ...(usage ? { usage } : {}),
       },

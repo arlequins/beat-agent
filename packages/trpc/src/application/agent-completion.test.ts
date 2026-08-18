@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { TRPCServices } from "../context";
 import {
   type AgentCompletionEvent,
+  collapseRepeatedParagraphs,
   streamAgentCompletion,
 } from "./agent-completion";
 
@@ -90,6 +91,20 @@ async function collect(
 }
 
 describe("streamAgentCompletion", () => {
+  it("collapses only adjacent identical answer blocks", () => {
+    expect(collapseRepeatedParagraphs("첫 문단\n\n첫 문단\n\n둘째 문단")).toBe(
+      "첫 문단\n\n둘째 문단",
+    );
+    expect(collapseRepeatedParagraphs("한 문단\n다음 줄")).toBe(
+      "한 문단\n다음 줄",
+    );
+    expect(
+      collapseRepeatedParagraphs(
+        "```ts\nconst first = 1;\n\nconst second = 2;\n```",
+      ),
+    ).toBe("```ts\nconst first = 1;\n\nconst second = 2;\n```");
+  });
+
   it("streams the answer and persists one cited assistant message", async () => {
     const { addMessage, addMessageCitations, services, streamText } =
       createServices();
@@ -181,6 +196,32 @@ describe("streamAgentCompletion", () => {
       2,
       expect.anything(),
       expect.objectContaining({ content: "최종 답변" }),
+    );
+  });
+
+  it("does not persist adjacent duplicate answer blocks", async () => {
+    const { addMessage, services } = createServices({
+      assistantMessage: {
+        content: "첫 문단\n\n둘째 문단",
+        id: "message-assistant",
+        role: "assistant",
+      },
+      chunks: ["첫 문단\n\n첫 문단\n\n둘째 문단"],
+    });
+
+    await expect(collect(services)).resolves.toEqual([
+      {
+        text: "첫 문단\n\n첫 문단\n\n둘째 문단",
+        type: "delta",
+      },
+      expect.objectContaining({ type: "complete" }),
+    ]);
+    expect(addMessage).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({
+        content: "첫 문단\n\n둘째 문단",
+      }),
     );
   });
 

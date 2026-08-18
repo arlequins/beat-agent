@@ -76,8 +76,9 @@ test("sends a question, renders its citation, and records feedback", async ({
   await page.getByRole("button", { name: "문서 등록" }).click();
   await expect(page.getByText(`chat-notes-${suffix}.txt`)).toBeVisible();
 
-  await page.getByLabel("질문").fill("Beat는 누구의 개인 비서인가요?");
-  await page.getByRole("button", { name: "보내기" }).click();
+  const question = page.getByLabel("질문");
+  await question.fill("Beat는 누구의 개인 비서인가요?");
+  await question.press("Control+Enter");
 
   const answer = page.locator("article").filter({ hasText: "테스트 응답:" });
   await expect(answer).toContainText("Beat는 누구의 개인 비서인가요?");
