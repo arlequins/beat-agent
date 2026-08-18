@@ -45,7 +45,7 @@ jobs:
           DEPLOY_STAGE: production
         run: node scripts/validate-deployment-input.mjs
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_DEPLOY_REGION }}
@@ -132,7 +132,7 @@ jobs:
       - name: Build web workspace dependencies
         run: pnpm turbo run build --filter=@arlequins/web...
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: apps/web/out
 
