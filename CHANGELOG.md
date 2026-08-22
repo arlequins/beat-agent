@@ -2,6 +2,14 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.13.1](https://github.com/arlequins/beat-agent/compare/v0.13.0...v0.13.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* **auth:** persist login across token expiry ([bbe810d](https://github.com/arlequins/beat-agent/commit/bbe810d4affd1f073ca9acfa2b48bfa97df55005))
+* **auth:** restore persisted sessions after token expiry ([e64ff60](https://github.com/arlequins/beat-agent/commit/e64ff602820cacaa4751637537af8f6d6e5d27ae))
+
 ## [0.13.0](https://github.com/arlequins/beat-agent/compare/v0.12.4...v0.13.0) (2026-08-22)
 
 
