@@ -51,6 +51,15 @@ export type DocumentExtractionPort = {
   }): Promise<{ text: string; warnings: string[] }>;
 };
 
+/** Fail-closed content inspection before an uploaded binary reaches a parser. */
+export type DocumentSecurityPort = {
+  scan(input: {
+    bytes: Uint8Array;
+    contentType: string;
+    filename: string;
+  }): Promise<{ warnings: string[] }>;
+};
+
 /** Boundary for vector stores. The relational store maps every vector id back to an authorized chunk. */
 export type VectorIndexPort = {
   delete(input: { recordIds: string[]; workspaceId: string }): Promise<void>;

@@ -23,6 +23,7 @@ export default $config({
   async run() {
     const {
       ApiDeploymentPreset,
+      clientEnv,
       LambdaEnvironment,
       resolveApiDeploymentConfig,
       resolveBedrockConfiguration,
@@ -92,6 +93,18 @@ export default $config({
             noncurrentDays: 90,
           },
           status: "Enabled",
+        },
+      ],
+    });
+    new aws.s3.BucketCorsConfigurationV2("AgentDataUploadCors", {
+      bucket: dataBucket.id,
+      corsRules: [
+        {
+          allowedHeaders: ["*"],
+          allowedMethods: ["PUT"],
+          allowedOrigins: [clientEnv.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")],
+          exposeHeaders: ["ETag"],
+          maxAgeSeconds: 300,
         },
       ],
     });
@@ -195,6 +208,84 @@ export default $config({
           : []),
       ],
     };
+    const worker = new sst.aws.Function("AgentJobsWorker", {
+      handler: "src/worker.handler",
+      timeout: "15 minutes",
+      ...(vpc
+        ? {
+            vpc: {
+              subnets: vpc.subnetIds,
+              securityGroups: vpc.securityGroups,
+            },
+          }
+        : {}),
+      environment: {
+        ...LambdaEnvironment,
+        AGENT_JOBS_QUEUE_URL: jobsQueue.url,
+        S3_AGENT_BUCKET: dataBucket.bucket,
+        S3_AGENT_PREFIX: $app.stage,
+        SST_STAGE: $app.stage,
+      },
+      permissions: [
+        { actions: ["s3:ListBucket"], resources: [dataBucket.arn] },
+        {
+          actions: ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"],
+          resources: [$interpolate`${dataBucket.arn}/*`],
+        },
+        {
+          actions: [
+            "sqs:ChangeMessageVisibility",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes",
+            "sqs:ReceiveMessage",
+          ],
+          resources: [jobsQueue.arn],
+        },
+      ],
+    });
+    new aws.lambda.EventSourceMapping("AgentJobsSubscription", {
+      batchSize: 1,
+      eventSourceArn: jobsQueue.arn,
+      functionName: worker.name,
+      functionResponseTypes: ["ReportBatchItemFailures"],
+    });
+
+    const scheduledEvaluation = new sst.aws.Function("ScheduledEvaluation", {
+      handler: "src/scheduled-evaluation.handler",
+      timeout: "5 minutes",
+      environment: {
+        ...LambdaEnvironment,
+        AGENT_JOBS_QUEUE_URL: jobsQueue.url,
+        S3_AGENT_BUCKET: dataBucket.bucket,
+        S3_AGENT_PREFIX: $app.stage,
+        SST_STAGE: $app.stage,
+      },
+      permissions: [
+        { actions: ["s3:ListBucket"], resources: [dataBucket.arn] },
+        {
+          actions: ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"],
+          resources: [$interpolate`${dataBucket.arn}/*`],
+        },
+        { actions: ["sqs:SendMessage"], resources: [jobsQueue.arn] },
+      ],
+    });
+    const evaluationSchedule = new aws.cloudwatch.EventRule(
+      "WeeklyEvaluationSchedule",
+      {
+        description: "Queue reviewed retrieval evaluations once per week",
+        scheduleExpression: "rate(7 days)",
+      },
+    );
+    new aws.cloudwatch.EventTarget("WeeklyEvaluationTarget", {
+      arn: scheduledEvaluation.arn,
+      rule: evaluationSchedule.name,
+    });
+    new aws.lambda.Permission("WeeklyEvaluationPermission", {
+      action: "lambda:InvokeFunction",
+      function: scheduledEvaluation.name,
+      principal: "events.amazonaws.com",
+      sourceArn: evaluationSchedule.arn,
+    });
     const alarmActions = serverEnv.ALERT_TOPIC_ARN
       ? [serverEnv.ALERT_TOPIC_ARN]
       : [];
@@ -224,6 +315,31 @@ export default $config({
         alarmActions,
       });
     }
+    new aws.cloudwatch.MetricAlarm("AgentJobsDeadLetterMessages", {
+      alarmActions,
+      alarmName: `${$app.name}-${$app.stage}-jobs-dlq`,
+      comparisonOperator: "GreaterThanOrEqualToThreshold",
+      dimensions: { QueueName: deadLetterQueue.name },
+      evaluationPeriods: 1,
+      metricName: "ApproximateNumberOfMessagesVisible",
+      namespace: "AWS/SQS",
+      period: 60,
+      statistic: "Maximum",
+      threshold: 1,
+      treatMissingData: "notBreaching",
+    });
+    new aws.cloudwatch.MetricAlarm("DailyModelTokenBudget", {
+      ...metric("ModelTokenCount"),
+      alarmActions,
+      alarmName: `${$app.name}-${$app.stage}-daily-model-tokens`,
+      comparisonOperator: "GreaterThanOrEqualToThreshold",
+      evaluationPeriods: 1,
+      period: 86_400,
+      threshold: Math.ceil(
+        (serverEnv.AGENT_MAX_MONTHLY_MODEL_TOKENS ?? 1_000_000) / 30,
+      ),
+      treatMissingData: "notBreaching",
+    });
     new aws.cloudwatch.Dashboard("ApiDashboard", {
       dashboardName: `${$app.name}-${$app.stage}`,
       dashboardBody: JSON.stringify({
@@ -240,6 +356,26 @@ export default $config({
                 [".", "ServerErrorCount", ".", "."],
                 [".", "RequestDuration", ".", ".", { stat: "Average" }],
                 [".", "ColdStart", ".", "."],
+                [".", "ModelTokenCount", ".", "."],
+              ],
+            },
+          },
+          {
+            type: "metric",
+            width: 12,
+            height: 6,
+            properties: {
+              region,
+              title: "Agent job queue and dead letters",
+              metrics: [
+                [
+                  "AWS/SQS",
+                  "ApproximateNumberOfMessagesVisible",
+                  "QueueName",
+                  jobsQueue.name,
+                ],
+                [".", ".", ".", deadLetterQueue.name],
+                [".", "ApproximateAgeOfOldestMessage", ".", jobsQueue.name],
               ],
             },
           },

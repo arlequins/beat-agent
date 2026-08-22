@@ -7,6 +7,7 @@ import {
 } from "@arlequins/agent-core";
 import type { AgentJobLease } from "../adaptors/agent-platform-s3";
 import type { TRPCServices } from "../context";
+import { assertWorkspaceQuota } from "./workspace-quota";
 
 export type AgentCompletionInput = {
   conversationId: string;
@@ -80,6 +81,15 @@ export async function* streamAgentCompletion(
   acquiredLease?: AgentJobLease,
 ): AsyncIterable<AgentCompletionEvent> {
   if (!services.model) throw new Error("Model completion is not configured");
+  if (!acquiredLease && services.quota)
+    await assertWorkspaceQuota(
+      services,
+      { userId, workspaceId: input.workspaceId },
+      {
+        messages: 2,
+        monthlyModelTokens: services.quota.maxCompletionTokens,
+      },
+    );
   const lease =
     acquiredLease ??
     (await services.agent.acquireJob(userId, {
