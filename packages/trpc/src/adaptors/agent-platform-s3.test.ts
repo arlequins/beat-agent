@@ -154,6 +154,8 @@ describe("S3 agent platform repository", () => {
       documents: 0,
       memories: 0,
       messages: 1,
+      monthlyModelTokens: 0,
+      storageBytes: 0,
     });
     expect(await repository.listAuditLog(actor)).toEqual(
       expect.arrayContaining([
@@ -259,6 +261,7 @@ describe("S3 agent platform repository", () => {
       question: "무엇인가?",
     });
     const run = await repository.createEvaluationRun(actor, "manual");
+    await repository.claimEvaluationRun(actor, run.id);
     await expect(
       repository.completeEvaluationRun(actor, {
         results: [
@@ -293,6 +296,7 @@ describe("S3 agent platform repository", () => {
       }),
     ).rejects.toThrow("at most once");
     const invalidRun = await repository.createEvaluationRun(actor, "weekly");
+    await repository.claimEvaluationRun(actor, invalidRun.id);
     await expect(
       repository.completeEvaluationRun(actor, {
         results: [
@@ -325,6 +329,7 @@ describe("S3 agent platform repository", () => {
       question: "기억 확인",
     });
     const run = await repository.createEvaluationRun(actor, "manual");
+    await repository.claimEvaluationRun(actor, run.id);
     await repository.completeEvaluationRun(actor, {
       results: [
         {

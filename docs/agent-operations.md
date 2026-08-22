@@ -25,11 +25,22 @@ Configure the host's monitoring platform to alert on these signals:
 | Release checksum | Scheduled validation missed | Active snapshot checksum fails; stop release activation |
 | SQS DLQ | Any message | Repeated messages; pause the related worker and inspect idempotency state |
 
-Quotas are product policy, not hidden template defaults. Before production,
-enforce document, chunk, storage, and inference budgets at the delivery or
-application boundary, return a clear 429/403-style product error, and record
-only non-content audit metadata. `agent.usage` supplies bounded workspace
-counts for that decision; it does not silently delete data or charge users.
+Quotas are enforced at the application boundary. The defaults are documented in
+`.env.example` and can be lowered through the protected deployment environment.
+Document count and bytes are reserved before issuing an upload URL; chat reserves
+two messages and the maximum completion tokens before model invocation. A rejected
+write returns HTTP/tRPC 429 with a Korean product message. `agent.usage` exposes
+document bytes and current UTC-month model tokens; limits never delete data.
+
+The operations panel shows investigations, approved evaluation cases, queued or
+completed runs, Citation recall, and the active immutable release. Operators create
+an evaluation case from a cited answer, run it, and only activate a snapshot after
+the 0.75 recall gate. EventBridge also queues this evaluation every seven days when
+approved cases exist.
+
+For queue incidents, inspect the `*-jobs-dlq` CloudWatch alarm and dashboard. Keep
+the source S3 object version and run record, correct the cause, then redrive the
+exact message. Never edit a completed run back to queued.
 
 ## Recovery
 

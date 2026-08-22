@@ -89,7 +89,7 @@ declare const sst: {
         };
         link?: unknown[];
       } & Record<string, unknown>,
-    ) => { url: string };
+    ) => { arn: string; name: string; url: string };
     Router: new (
       name: string,
       args: {
@@ -115,6 +115,10 @@ declare const aws: {
       name: string,
       args: Record<string, unknown>,
     ) => unknown;
+    BucketCorsConfigurationV2: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => unknown;
     BucketOwnershipControls: new (
       name: string,
       args: Record<string, unknown>,
@@ -137,11 +141,23 @@ declare const aws: {
     Queue: new (
       name: string,
       args: Record<string, unknown>,
-    ) => { arn: string; url: string };
+    ) => { arn: string; name: string; url: string };
   };
   cloudwatch: {
     MetricAlarm: new (name: string, args: Record<string, unknown>) => unknown;
     Dashboard: new (name: string, args: Record<string, unknown>) => unknown;
+    EventRule: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => { arn: string; name: string };
+    EventTarget: new (name: string, args: Record<string, unknown>) => unknown;
+  };
+  lambda: {
+    EventSourceMapping: new (
+      name: string,
+      args: Record<string, unknown>,
+    ) => unknown;
+    Permission: new (name: string, args: Record<string, unknown>) => unknown;
   };
 };
 

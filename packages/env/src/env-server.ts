@@ -66,6 +66,18 @@ export const serverEnv = createEnv({
       .optional(),
     /** Optional SNS topic receiving CloudWatch alarm notifications. */
     ALERT_TOPIC_ARN: z.string().startsWith("arn:aws:sns:").optional(),
+    /** SQS FIFO queue used for document, investigation, and evaluation jobs. */
+    AGENT_JOBS_QUEUE_URL: z.url().optional(),
+    AGENT_MAX_COMPLETION_TOKENS: z.coerce.number().int().min(2_048).optional(),
+    AGENT_MAX_DOCUMENTS: z.coerce.number().int().positive().optional(),
+    AGENT_MAX_MEMORIES: z.coerce.number().int().positive().optional(),
+    AGENT_MAX_MESSAGES: z.coerce.number().int().positive().optional(),
+    AGENT_MAX_MONTHLY_MODEL_TOKENS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
+    AGENT_MAX_STORAGE_BYTES: z.coerce.number().int().positive().optional(),
     /** OTLP/HTTP collector base URL. Omit to keep export disabled. */
     OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
     /** Comma-separated OTLP headers in key=value form. */
@@ -140,6 +152,13 @@ export const serverEnv = createEnv({
     API_RATE_LIMIT_REQUESTS: process.env.API_RATE_LIMIT_REQUESTS,
     API_RATE_LIMIT_WINDOW_SECONDS: process.env.API_RATE_LIMIT_WINDOW_SECONDS,
     ALERT_TOPIC_ARN: process.env.ALERT_TOPIC_ARN,
+    AGENT_JOBS_QUEUE_URL: process.env.AGENT_JOBS_QUEUE_URL,
+    AGENT_MAX_COMPLETION_TOKENS: process.env.AGENT_MAX_COMPLETION_TOKENS,
+    AGENT_MAX_DOCUMENTS: process.env.AGENT_MAX_DOCUMENTS,
+    AGENT_MAX_MEMORIES: process.env.AGENT_MAX_MEMORIES,
+    AGENT_MAX_MESSAGES: process.env.AGENT_MAX_MESSAGES,
+    AGENT_MAX_MONTHLY_MODEL_TOKENS: process.env.AGENT_MAX_MONTHLY_MODEL_TOKENS,
+    AGENT_MAX_STORAGE_BYTES: process.env.AGENT_MAX_STORAGE_BYTES,
     OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS,
     OTEL_SERVICE_NAME: process.env.OTEL_SERVICE_NAME,

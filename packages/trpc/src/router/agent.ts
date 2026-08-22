@@ -2,6 +2,7 @@ import {
   addMessageInputSchema,
   addWorkspaceMemberInputSchema,
   completeAgentInputSchema,
+  completeDocumentUploadInputSchema,
   conversationScopeInputSchema,
   createConversationInputSchema,
   createDocumentInputSchema,
@@ -13,6 +14,7 @@ import {
   memoryScopeInputSchema,
   messageCitationInputSchema,
   publishReleaseInputSchema,
+  requestDocumentUploadInputSchema,
   reviewMemoryInputSchema,
   startIndexInputSchema,
   submitFeedbackInputSchema,
@@ -22,7 +24,11 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 
 import { streamAgentCompletion } from "../application/agent-completion";
-import { runRetrievalEvaluation } from "../application/retrieval-evaluation";
+import { createAgentJob, dispatchAgentJob } from "../application/agent-jobs";
+import {
+  assertWorkspaceQuota,
+  WorkspaceQuotaExceededError,
+} from "../application/workspace-quota";
 import {
   modelNotConfiguredMessage,
   modelRequestFailureMessage,
@@ -31,6 +37,23 @@ import { protectedProcedure } from "../trpc";
 
 function actor(userId: string, workspaceId: string) {
   return { userId, workspaceId };
+}
+
+async function enforceQuota(
+  services: Parameters<typeof assertWorkspaceQuota>[0],
+  workspaceActor: ReturnType<typeof actor>,
+  delta: Parameters<typeof assertWorkspaceQuota>[2],
+) {
+  try {
+    return await assertWorkspaceQuota(services, workspaceActor, delta);
+  } catch (error) {
+    if (error instanceof WorkspaceQuotaExceededError)
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: error.message,
+      });
+    throw error;
+  }
 }
 
 /** Workspace is taken from validated input and checked by the repository on every operation. */
@@ -75,18 +98,23 @@ export const agentRouter = {
     .input(workspaceScopeInputSchema)
     .mutation(async ({ ctx, input }) => {
       const actorInput = actor(ctx.session.user.id, input.workspaceId);
-      const [run, cases] = await Promise.all([
-        ctx.services.agent.createEvaluationRun(actorInput, "manual"),
-        ctx.services.agent.listEvaluationCases(actorInput),
-      ]);
-      const results = await runRetrievalEvaluation(ctx.services, {
-        cases,
-        workspaceId: input.workspaceId,
-      });
-      return ctx.services.agent.completeEvaluationRun(actorInput, {
-        results,
-        runId: run.id,
-      });
+      const run = await ctx.services.agent.createEvaluationRun(
+        actorInput,
+        "manual",
+      );
+      await dispatchAgentJob(
+        ctx.services,
+        createAgentJob(
+          "evaluate.retrieval",
+          {
+            evaluationRunId: run.id,
+            userId: ctx.session.user.id,
+            workspaceId: input.workspaceId,
+          },
+          run.id,
+        ),
+      );
+      return run;
     }),
   evaluationRuns: protectedProcedure
     .input(workspaceScopeInputSchema)
@@ -100,7 +128,9 @@ export const agentRouter = {
     .query(async ({ ctx, input }) => {
       const actorInput = actor(ctx.session.user.id, input.workspaceId);
       await ctx.services.agent.assertMember(actorInput);
-      return ctx.services.agent.activeRelease(input.workspaceId);
+      return (
+        (await ctx.services.agent.activeRelease(input.workspaceId)) ?? null
+      );
     }),
   publishRelease: protectedProcedure
     .input(publishReleaseInputSchema)
@@ -143,8 +173,13 @@ export const agentRouter = {
     ),
   addMessage: protectedProcedure
     .input(addMessageInputSchema)
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { workspaceId, ...message } = input;
+      await enforceQuota(
+        ctx.services,
+        actor(ctx.session.user.id, workspaceId),
+        { messages: 1 },
+      );
       return ctx.services.agent.addMessage(
         actor(ctx.session.user.id, workspaceId),
         message,
@@ -155,6 +190,10 @@ export const agentRouter = {
     .mutation(async ({ ctx, input }) => {
       const { content, contentType, filename, workspaceId } = input;
       const actorInput = actor(ctx.session.user.id, workspaceId);
+      await enforceQuota(ctx.services, actorInput, {
+        documents: 1,
+        storageBytes: new TextEncoder().encode(content).byteLength,
+      });
       const extracted = await ctx.services.documentExtraction.extract({
         bytes: new TextEncoder().encode(content),
         contentType,
@@ -187,6 +226,66 @@ export const agentRouter = {
       }
       return created;
     }),
+  requestDocumentUpload: protectedProcedure
+    .input(requestDocumentUploadInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.services.documentSource)
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "문서 업로드 저장소가 구성되지 않았습니다.",
+        });
+      const workspaceActor = actor(ctx.session.user.id, input.workspaceId);
+      await enforceQuota(ctx.services, workspaceActor, {
+        documents: 1,
+        storageBytes: input.sizeBytes,
+      });
+      await ctx.services.agent.assertMember(workspaceActor);
+      return ctx.services.documentSource.createUploadTarget({
+        ...input,
+        userId: ctx.session.user.id,
+      });
+    }),
+  completeDocumentUpload: protectedProcedure
+    .input(completeDocumentUploadInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.services.documentSource)
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "문서 업로드 저장소가 구성되지 않았습니다.",
+        });
+      const workspaceActor = actor(ctx.session.user.id, input.workspaceId);
+      await enforceQuota(ctx.services, workspaceActor, {
+        documents: 1,
+        storageBytes: input.sizeBytes,
+      });
+      await ctx.services.documentSource.verifyUpload(input);
+      const document = await ctx.services.agent.createDocument(workspaceActor, {
+        contentHash: input.contentHash,
+        contentType: input.contentType,
+        filename: input.filename,
+        sizeBytes: input.sizeBytes,
+        sourceUri: input.sourceUri,
+      });
+      const run = await ctx.services.agent.createIndexRun(
+        workspaceActor,
+        document.id,
+        "extract",
+      );
+      await dispatchAgentJob(
+        ctx.services,
+        createAgentJob(
+          "extract.document",
+          {
+            documentId: document.id,
+            indexRunId: run.id,
+            userId: ctx.session.user.id,
+            workspaceId: input.workspaceId,
+          },
+          run.id,
+        ),
+      );
+      return { document, run };
+    }),
   documents: protectedProcedure
     .input(workspaceScopeInputSchema)
     .query(({ ctx, input }) =>
@@ -212,8 +311,13 @@ export const agentRouter = {
     ),
   createMemory: protectedProcedure
     .input(createMemoryInputSchema)
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { workspaceId, ...memory } = input;
+      await enforceQuota(
+        ctx.services,
+        actor(ctx.session.user.id, workspaceId),
+        { memories: 1 },
+      );
       return ctx.services.agent.createMemory(
         actor(ctx.session.user.id, workspaceId),
         memory,
@@ -271,6 +375,11 @@ export const agentRouter = {
           if (event.type === "complete") message = event.message;
         }
       } catch (error) {
+        if (error instanceof WorkspaceQuotaExceededError)
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: error.message,
+          });
         throw new TRPCError({
           code: "BAD_GATEWAY",
           cause: error,
@@ -282,8 +391,13 @@ export const agentRouter = {
     }),
   createDocument: protectedProcedure
     .input(createDocumentInputSchema)
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { workspaceId, ...document } = input;
+      await enforceQuota(
+        ctx.services,
+        actor(ctx.session.user.id, workspaceId),
+        { documents: 1, storageBytes: document.sizeBytes },
+      );
       return ctx.services.agent.createDocument(
         actor(ctx.session.user.id, workspaceId),
         document,
@@ -299,37 +413,20 @@ export const agentRouter = {
         input.provider,
       );
       if (!indexRun) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      if (input.provider !== "local" || !ctx.services.embedding)
-        return indexRun;
-      try {
-        const chunks = await ctx.services.agent.listDocumentChunks(
-          actorInput,
-          input.documentId,
-        );
-        const embeddings = await ctx.services.embedding.embed({
-          input: chunks.map((chunk) => chunk.content),
-        });
-        if (embeddings.length !== chunks.length)
-          throw new Error("Embedding response did not match document chunks");
-        await ctx.services.agent.setChunkEmbeddings(
-          actorInput,
-          chunks.map((chunk, index) => ({
-            embedding: embeddings[index] ?? [],
-            id: chunk.id,
-          })),
-        );
-        return ctx.services.agent.finishIndexRun(actorInput, {
-          indexRunId: indexRun.id,
-          status: "completed",
-        });
-      } catch (error) {
-        return ctx.services.agent.finishIndexRun(actorInput, {
-          error:
-            error instanceof Error ? error.message : "Local indexing failed",
-          indexRunId: indexRun.id,
-          status: "failed",
-        });
-      }
+      await dispatchAgentJob(
+        ctx.services,
+        createAgentJob(
+          "index.document",
+          {
+            documentId: input.documentId,
+            indexRunId: indexRun.id,
+            userId: ctx.session.user.id,
+            workspaceId: input.workspaceId,
+          },
+          indexRun.id,
+        ),
+      );
+      return indexRun;
     }),
   indexRuns: protectedProcedure
     .input(workspaceScopeInputSchema)
@@ -340,13 +437,35 @@ export const agentRouter = {
     ),
   submitFeedback: protectedProcedure
     .input(submitFeedbackInputSchema)
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { workspaceId, ...feedback } = input;
-      return ctx.services.agent.submitFeedback(
+      const result = await ctx.services.agent.submitFeedback(
         actor(ctx.session.user.id, workspaceId),
         feedback,
       );
+      if (result.investigation)
+        await dispatchAgentJob(
+          ctx.services,
+          createAgentJob(
+            "investigate.feedback",
+            {
+              feedbackId: result.feedback.id,
+              investigationId: result.investigation.id,
+              userId: ctx.session.user.id,
+              workspaceId,
+            },
+            result.investigation.id,
+          ),
+        );
+      return result;
     }),
+  investigations: protectedProcedure
+    .input(workspaceScopeInputSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.agent.listInvestigations(
+        actor(ctx.session.user.id, input.workspaceId),
+      ),
+    ),
   auditLog: protectedProcedure
     .input(workspaceScopeInputSchema)
     .query(({ ctx, input }) =>

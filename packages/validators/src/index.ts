@@ -82,6 +82,26 @@ export const ingestTextDocumentInputSchema = workspaceScopeInputSchema.extend({
     .default("text/plain"),
   filename: z.string().trim().min(1).max(512),
 });
+export const binaryDocumentContentTypeSchema = z.enum([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+export const requestDocumentUploadInputSchema =
+  workspaceScopeInputSchema.extend({
+    contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+    contentType: binaryDocumentContentTypeSchema,
+    filename: z.string().trim().min(1).max(512),
+    sizeBytes: z.number().int().positive().max(10_000_000),
+  });
+export const completeDocumentUploadInputSchema =
+  requestDocumentUploadInputSchema.extend({
+    sourceUri: z
+      .string()
+      .regex(/^s3:\/\//)
+      .max(2_048),
+  });
 export const createMemoryInputSchema = workspaceScopeInputSchema.extend({
   content: z.string().trim().min(1).max(10_000),
   importance: z.number().int().min(1).max(100).optional(),

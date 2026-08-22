@@ -14,6 +14,10 @@
     "./agent-completion": {
       "types": "./dist/application/agent-completion.d.ts",
       "default": "./src/application/agent-completion.ts"
+    },
+    "./agent-jobs": {
+      "types": "./dist/application/agent-jobs.d.ts",
+      "default": "./src/application/agent-jobs.ts"
     }
   },
   "license": "MIT",
@@ -39,6 +43,7 @@
     "@arlequins/validators": "workspace:*",
     "@aws-sdk/client-bedrock-runtime": "catalog:",
     "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:",
     "@trpc/server": "catalog:",
     "superjson": "catalog:",
     "zod": "catalog:"

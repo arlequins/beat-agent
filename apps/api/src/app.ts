@@ -6,13 +6,15 @@ import {
   createTelemetry,
   noopErrorReporter,
 } from "@arlequins/logger";
-import type { RateLimitPort } from "@arlequins/service";
+import type { JobQueuePort, RateLimitPort } from "@arlequins/service";
 import {
   AppRouter,
+  assertWorkspaceQuota,
   createTRPCContext,
   MODEL_REQUEST_FAILED_CODE,
   modelRequestFailureMessage,
   TRPC_HTTP_PATH,
+  WorkspaceQuotaExceededError,
 } from "@arlequins/trpc";
 import { streamAgentCompletion } from "@arlequins/trpc/agent-completion";
 import {
@@ -27,6 +29,7 @@ import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
+import { createSqsJobQueue } from "./adaptors/aws-async";
 import { createInMemoryRateLimitAdapter } from "./adaptors/in-memory-rate-limit";
 import { mapApplicationErrorToHttp } from "./application-error";
 import { registerOpenApiRoutes } from "./openapi";
@@ -51,6 +54,15 @@ export type CreateApiAppOptions = {
 };
 
 let coldStart = true;
+let configuredQueue: JobQueuePort | undefined;
+
+function agentJobQueue() {
+  if (!serverEnv.AGENT_JOBS_QUEUE_URL) return undefined;
+  configuredQueue ??= createSqsJobQueue({
+    queueUrl: serverEnv.AGENT_JOBS_QUEUE_URL,
+  });
+  return configuredQueue;
+}
 
 async function checkStorageReadiness(): Promise<void> {
   if (!serverEnv.S3_AGENT_BUCKET)
@@ -82,7 +94,12 @@ function handleTrpcRequest(
     req: request,
     router: AppRouter,
     createContext: () =>
-      createTRPCContext({ headers: request.headers, logger, telemetry }),
+      createTRPCContext({
+        headers: request.headers,
+        ...(agentJobQueue() ? { jobQueue: agentJobQueue() } : {}),
+        logger,
+        telemetry,
+      }),
     onError({ error, path }) {
       logger.error("trpc.request.failed", {
         error,
@@ -100,6 +117,7 @@ async function handleMcpRequest(
 ): Promise<Response> {
   const trpcContext = await createTRPCContext({
     headers: context.req.raw.headers,
+    ...(agentJobQueue() ? { jobQueue: agentJobQueue() } : {}),
     logger: context.get("logger"),
     telemetry,
   });
@@ -326,6 +344,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
     }
     const trpcContext = await createTRPCContext({
       headers: context.req.raw.headers,
+      ...(agentJobQueue() ? { jobQueue: agentJobQueue() } : {}),
       logger: context.get("logger"),
       telemetry,
     });
@@ -335,6 +354,27 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
         { error: "Unauthorized", requestId: context.get("requestId") },
         401,
       );
+    }
+    try {
+      await assertWorkspaceQuota(
+        trpcContext.services,
+        { userId: session.user.id, workspaceId: parsed.data.workspaceId },
+        {
+          messages: 2,
+          monthlyModelTokens: trpcContext.services.quota.maxCompletionTokens,
+        },
+      );
+    } catch (error) {
+      if (error instanceof WorkspaceQuotaExceededError)
+        return context.json(
+          {
+            error: "Quota Exceeded",
+            message: error.message,
+            requestId: context.get("requestId"),
+          },
+          429,
+        );
+      throw error;
     }
     let lease: Awaited<
       ReturnType<typeof trpcContext.services.agent.acquireJob>
@@ -372,6 +412,15 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
             parsed.data,
             lease,
           )) {
+            if (event.type === "usage")
+              telemetry.metric(
+                "ModelTokenCount",
+                event.usage.totalTokens ??
+                  (event.usage.inputTokens ?? 0) +
+                    (event.usage.outputTokens ?? 0),
+                "Count",
+                { stage },
+              );
             controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
           }
         } catch (error) {

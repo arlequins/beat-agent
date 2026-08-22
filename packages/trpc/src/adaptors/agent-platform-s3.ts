@@ -90,11 +90,13 @@ type CitationRecord = {
   ordinal: number;
 };
 type IndexRun = {
+  attempts?: number;
   completedAt?: string;
   createdAt: string;
   documentId: string;
   error?: string;
   id: string;
+  leaseExpiresAt?: string;
   provider: string;
   startedAt?: string;
   status: string;
@@ -110,9 +112,21 @@ type Feedback = {
   workspaceId: string;
 };
 type Investigation = {
+  attempts?: number;
+  completedAt?: string;
   createdAt: string;
+  error?: string;
   feedbackId: string;
+  findings?: {
+    citationCount: number;
+    comment?: string;
+    feedbackKind: FeedbackKind;
+    messageExcerpt: string;
+  };
   id: string;
+  leaseExpiresAt?: string;
+  resolution?: string;
+  startedAt?: string;
   status: string;
 };
 type EvaluationCase = {
@@ -125,15 +139,18 @@ type EvaluationCase = {
   workspaceId: string;
 };
 type EvaluationRun = {
+  attempts?: number;
   completedAt?: string;
   createdAt: string;
+  error?: string;
   id: string;
+  leaseExpiresAt?: string;
   results?: Array<{
     caseId: string;
     citationRecall: number;
     retrievedChunkIds: string[];
   }>;
-  startedAt: string;
+  startedAt?: string;
   status: string;
   summary?: {
     averageCitationPrecision?: number;
@@ -195,6 +212,18 @@ const stateKey = (workspaceId: string, type: string, id: string) =>
 const collectionPrefix = (workspaceId: string, type: string) =>
   `workspaces/${workspaceId}/state/${type}/`;
 
+function stableUuid(value: string) {
+  const characters = createHash("sha256")
+    .update(value)
+    .digest("hex")
+    .slice(0, 32)
+    .split("");
+  characters[12] = "4";
+  characters[16] = "8";
+  const hex = characters.join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 function eventKey(workspaceId: string, id: string) {
   return `workspaces/${workspaceId}/events/${Date.now()
     .toString()
@@ -254,6 +283,29 @@ function publicIndexRun(value: IndexRun) {
     createdAt: new Date(value.createdAt),
     error: value.error ?? null,
     startedAt: date(value.startedAt) ?? null,
+  };
+}
+
+function publicInvestigation(value: Investigation) {
+  return {
+    ...value,
+    completedAt: date(value.completedAt) ?? null,
+    createdAt: new Date(value.createdAt),
+    error: value.error ?? null,
+    findings: value.findings ?? null,
+    resolution: value.resolution ?? null,
+    startedAt: date(value.startedAt) ?? null,
+  };
+}
+
+function publicEvaluationRun(value: EvaluationRun) {
+  return {
+    ...value,
+    completedAt: date(value.completedAt) ?? null,
+    createdAt: new Date(value.createdAt),
+    error: value.error ?? null,
+    startedAt: date(value.startedAt) ?? null,
+    summary: value.summary ?? null,
   };
 }
 
@@ -468,6 +520,27 @@ export function createS3AgentPlatformRepository(
         .filter((row): row is NonNullable<typeof row> => row !== undefined)
         .sort((left, right) => left.name.localeCompare(right.name));
     },
+    async listWorkspaceOwners() {
+      const rows = await store.list<unknown>("workspaces/");
+      return rows.flatMap(({ key, value }) => {
+        if (
+          !key.includes("/state/members/") ||
+          !value ||
+          typeof value !== "object"
+        )
+          return [];
+        const candidate = value as Partial<Membership>;
+        if (
+          candidate.role !== "owner" ||
+          typeof candidate.userId !== "string" ||
+          typeof candidate.workspaceId !== "string"
+        )
+          return [];
+        return [
+          { userId: candidate.userId, workspaceId: candidate.workspaceId },
+        ];
+      });
+    },
     async addWorkspaceMember(
       actor: WorkspaceActor,
       userId: string,
@@ -610,6 +683,16 @@ export function createS3AgentPlatformRepository(
       },
     ) {
       await assertMember(actor);
+      const duplicate = (
+        await values<Document>(
+          store,
+          collectionPrefix(actor.workspaceId, "documents"),
+        )
+      ).find(
+        (document) =>
+          document.contentHash === input.contentHash && !document.deletedAt,
+      );
+      if (duplicate) throw new Error("Document content already exists");
       const document: Document = {
         ...input,
         createdAt: timestamp(),
@@ -624,6 +707,62 @@ export function createS3AgentPlatformRepository(
       );
       await appendEvent(actor, "document.created", document.id, {
         contentHash: document.contentHash,
+      });
+      return publicDocument(document);
+    },
+    async completeDocumentExtraction(
+      actor: WorkspaceActor,
+      input: { documentId: string; text: string; warnings: string[] },
+    ) {
+      await assertMember(actor);
+      const record = await required<Document>(
+        store,
+        stateKey(actor.workspaceId, "documents", input.documentId),
+        "Document was not found in this workspace",
+      );
+      if (record.value.status === "completed")
+        return publicDocument(record.value);
+      if (record.value.deletedAt)
+        throw new Error("Document was not found in this workspace");
+      const createdAt = timestamp();
+      const blobKey = `workspaces/${actor.workspaceId}/blobs/sha256/${record.value.contentHash}.json`;
+      try {
+        await store.create(blobKey, {
+          content: input.text,
+          contentHash: record.value.contentHash,
+          contentType: "text/plain",
+          createdAt,
+          sourceUri: record.value.sourceUri,
+        });
+      } catch (error) {
+        if (!(error instanceof ObjectAlreadyExistsError)) throw error;
+      }
+      const chunks = input.text.match(/[\s\S]{1,1200}/g) ?? [];
+      for (const [ordinal, content] of chunks.entries()) {
+        const chunk: DocumentChunk = {
+          content,
+          createdAt,
+          documentId: record.value.id,
+          id: stableUuid(`${record.value.id}:${ordinal}`),
+          ordinal,
+        };
+        try {
+          await store.create(
+            stateKey(actor.workspaceId, `chunks/${record.value.id}`, chunk.id),
+            chunk,
+          );
+        } catch (error) {
+          if (!(error instanceof ObjectAlreadyExistsError)) throw error;
+        }
+      }
+      const document = await mutate<Document>(
+        store,
+        stateKey(actor.workspaceId, "documents", record.value.id),
+        (current) => ({ ...current, status: "completed" }),
+      );
+      await appendEvent(actor, "document.extracted", document.id, {
+        chunks: chunks.length,
+        warnings: input.warnings.length,
       });
       return publicDocument(document);
     },
@@ -705,13 +844,7 @@ export function createS3AgentPlatformRepository(
       )
         .filter((document) => !document.deletedAt)
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-        .map((document) => ({
-          createdAt: new Date(document.createdAt),
-          filename: document.filename,
-          id: document.id,
-          sizeBytes: document.sizeBytes,
-          status: document.status,
-        }));
+        .map(publicDocument);
     },
     async deleteDocument(actor: WorkspaceActor, documentId: string) {
       await assertOwner(actor);
@@ -780,6 +913,41 @@ export function createS3AgentPlatformRepository(
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
         .map(publicIndexRun);
     },
+    async claimIndexRun(actor: WorkspaceActor, indexRunId: string) {
+      await assertMember(actor);
+      let acquired = false;
+      const claimedAt = now();
+      const run = await mutate<IndexRun>(
+        store,
+        stateKey(actor.workspaceId, "index-runs", indexRunId),
+        (current) => {
+          acquired = false;
+          if (["completed", "failed"].includes(current.status)) return current;
+          if (
+            current.status === "running" &&
+            current.leaseExpiresAt &&
+            Date.parse(current.leaseExpiresAt) > claimedAt.getTime()
+          )
+            return current;
+          acquired = true;
+          return {
+            ...current,
+            attempts: (current.attempts ?? 0) + 1,
+            leaseExpiresAt: new Date(
+              claimedAt.getTime() + jobLeaseMs,
+            ).toISOString(),
+            startedAt: current.startedAt ?? claimedAt.toISOString(),
+            status: "running",
+          };
+        },
+      );
+      if (acquired)
+        await appendEvent(actor, "index.running", run.id, {
+          attempt: run.attempts,
+          provider: run.provider,
+        });
+      return { acquired, run: publicIndexRun(run) };
+    },
     async listMessageCitations(actor: WorkspaceActor, messageId: string) {
       await assertMember(actor);
       const records = await values<CitationRecord>(
@@ -806,6 +974,7 @@ export function createS3AgentPlatformRepository(
           return [
             {
               content: chunk.content,
+              chunkId: chunk.id,
               documentId: document.id,
               filename: document.filename,
               locator: chunk.locator ?? null,
@@ -997,6 +1166,12 @@ export function createS3AgentPlatformRepository(
       await appendEvent(actor, `index.${input.status}`, run.id, {
         provider: run.provider,
       });
+      if (run.provider === "extract" && input.status === "failed")
+        await mutate<Document>(
+          store,
+          stateKey(actor.workspaceId, "documents", run.documentId),
+          (current) => ({ ...current, status: "failed" }),
+        );
       return publicIndexRun(run);
     },
     async submitFeedback(
@@ -1058,6 +1233,115 @@ export function createS3AgentPlatformRepository(
           : undefined,
       };
     },
+    async listInvestigations(actor: WorkspaceActor) {
+      await assertOwner(actor);
+      return (
+        await values<Investigation>(
+          store,
+          collectionPrefix(actor.workspaceId, "investigations"),
+        )
+      )
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .map(publicInvestigation);
+    },
+    async claimInvestigation(actor: WorkspaceActor, investigationId: string) {
+      await assertMember(actor);
+      let acquired = false;
+      const claimedAt = now();
+      const investigation = await mutate<Investigation>(
+        store,
+        stateKey(actor.workspaceId, "investigations", investigationId),
+        (current) => {
+          acquired = false;
+          if (["completed", "failed"].includes(current.status)) return current;
+          if (
+            current.status === "running" &&
+            current.leaseExpiresAt &&
+            Date.parse(current.leaseExpiresAt) > claimedAt.getTime()
+          )
+            return current;
+          acquired = true;
+          return {
+            ...current,
+            attempts: (current.attempts ?? 0) + 1,
+            leaseExpiresAt: new Date(
+              claimedAt.getTime() + jobLeaseMs,
+            ).toISOString(),
+            startedAt: current.startedAt ?? claimedAt.toISOString(),
+            status: "running",
+          };
+        },
+      );
+      if (acquired)
+        await appendEvent(actor, "investigation.running", investigation.id, {
+          attempt: investigation.attempts,
+        });
+      return { acquired, investigation: publicInvestigation(investigation) };
+    },
+    async finishInvestigation(
+      actor: WorkspaceActor,
+      input: {
+        error?: string;
+        investigationId: string;
+        status: "completed" | "failed";
+      },
+    ) {
+      await assertMember(actor);
+      const current = (
+        await required<Investigation>(
+          store,
+          stateKey(actor.workspaceId, "investigations", input.investigationId),
+          "Investigation was not found in this workspace",
+        )
+      ).value;
+      const feedback = (
+        await required<Feedback>(
+          store,
+          stateKey(actor.workspaceId, "feedback", current.feedbackId),
+          "Feedback was not found in this workspace",
+        )
+      ).value;
+      const messages = await store.list<Message>(
+        collectionPrefix(actor.workspaceId, "messages"),
+      );
+      const message = messages.find(
+        ({ value }) => value.id === feedback.messageId,
+      )?.value;
+      const citations = await values<CitationRecord>(
+        store,
+        collectionPrefix(actor.workspaceId, `citations/${feedback.messageId}`),
+      );
+      const completedAt = timestamp();
+      const investigation = await mutate<Investigation>(
+        store,
+        stateKey(actor.workspaceId, "investigations", input.investigationId),
+        (value) => ({
+          ...value,
+          completedAt,
+          ...(input.error ? { error: input.error.slice(0, 1_000) } : {}),
+          ...(input.status === "completed"
+            ? {
+                findings: {
+                  citationCount: citations.length,
+                  ...(feedback.comment ? { comment: feedback.comment } : {}),
+                  feedbackKind: feedback.kind,
+                  messageExcerpt: (message?.content ?? "").slice(0, 500),
+                },
+                resolution:
+                  "근거와 답변을 검토한 뒤 승인된 평가 사례로 등록하세요.",
+              }
+            : {}),
+          startedAt: value.startedAt ?? completedAt,
+          status: input.status,
+        }),
+      );
+      await appendEvent(
+        actor,
+        `investigation.${input.status}`,
+        investigation.id,
+      );
+      return publicInvestigation(investigation);
+    },
     async listAuditLog(actor: WorkspaceActor) {
       await assertOwner(actor);
       return (
@@ -1089,10 +1373,28 @@ export function createS3AgentPlatformRepository(
           collectionPrefix(actor.workspaceId, "memories"),
         ),
       ]);
+      const monthPrefix = timestamp().slice(0, 7);
       return {
         documents: documents.filter((item) => !item.deletedAt).length,
         memories: memories.filter((item) => !item.deletedAt).length,
         messages: messages.length,
+        monthlyModelTokens: messages
+          .filter(
+            (item) =>
+              item.role === "assistant" &&
+              item.createdAt.startsWith(monthPrefix),
+          )
+          .reduce((total, item) => {
+            const usage = item.metadata?.usage;
+            return (
+              total +
+              (usage?.totalTokens ??
+                (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0))
+            );
+          }, 0),
+        storageBytes: documents
+          .filter((item) => !item.deletedAt)
+          .reduce((total, item) => total + item.sizeBytes, 0),
       };
     },
     async createEvaluationCase(
@@ -1139,8 +1441,7 @@ export function createS3AgentPlatformRepository(
       const run: EvaluationRun = {
         createdAt,
         id: randomUUID(),
-        startedAt: createdAt,
-        status: "running",
+        status: "queued",
         trigger,
         workspaceId: actor.workspaceId,
       };
@@ -1148,14 +1449,63 @@ export function createS3AgentPlatformRepository(
         stateKey(actor.workspaceId, "evaluation-runs", run.id),
         run,
       );
-      await appendEvent(actor, "evaluation.run.started", run.id, { trigger });
-      return {
-        ...run,
-        completedAt: null,
-        createdAt: new Date(run.createdAt),
-        startedAt: new Date(run.startedAt),
-        summary: null,
-      };
+      await appendEvent(actor, "evaluation.run.queued", run.id, { trigger });
+      return publicEvaluationRun(run);
+    },
+    async claimEvaluationRun(actor: WorkspaceActor, runId: string) {
+      await assertOwner(actor);
+      let acquired = false;
+      const claimedAt = now();
+      const run = await mutate<EvaluationRun>(
+        store,
+        stateKey(actor.workspaceId, "evaluation-runs", runId),
+        (current) => {
+          acquired = false;
+          if (["completed", "failed"].includes(current.status)) return current;
+          if (
+            current.status === "running" &&
+            current.leaseExpiresAt &&
+            Date.parse(current.leaseExpiresAt) > claimedAt.getTime()
+          )
+            return current;
+          acquired = true;
+          return {
+            ...current,
+            attempts: (current.attempts ?? 0) + 1,
+            leaseExpiresAt: new Date(
+              claimedAt.getTime() + jobLeaseMs,
+            ).toISOString(),
+            startedAt: current.startedAt ?? claimedAt.toISOString(),
+            status: "running",
+          };
+        },
+      );
+      if (acquired)
+        await appendEvent(actor, "evaluation.run.started", run.id, {
+          attempt: run.attempts,
+          trigger: run.trigger,
+        });
+      return { acquired, run: publicEvaluationRun(run) };
+    },
+    async failEvaluationRun(
+      actor: WorkspaceActor,
+      input: { error: string; runId: string },
+    ) {
+      await assertOwner(actor);
+      const completedAt = timestamp();
+      const run = await mutate<EvaluationRun>(
+        store,
+        stateKey(actor.workspaceId, "evaluation-runs", input.runId),
+        (current) => ({
+          ...current,
+          completedAt,
+          error: input.error.slice(0, 1_000),
+          startedAt: current.startedAt ?? completedAt,
+          status: "failed",
+        }),
+      );
+      await appendEvent(actor, "evaluation.run.failed", run.id);
+      return publicEvaluationRun(run);
     },
     async completeEvaluationRun(
       actor: WorkspaceActor,
@@ -1244,13 +1594,7 @@ export function createS3AgentPlatformRepository(
       )
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
         .slice(0, 24)
-        .map((run) => ({
-          ...run,
-          completedAt: date(run.completedAt) ?? null,
-          createdAt: new Date(run.createdAt),
-          startedAt: new Date(run.startedAt),
-          summary: run.summary ?? null,
-        }));
+        .map(publicEvaluationRun);
     },
     async activeRelease(workspaceId: string) {
       return (

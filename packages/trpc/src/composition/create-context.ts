@@ -1,5 +1,8 @@
 import { createBedrockModelProvider } from "@arlequins/agent-bedrock";
-import { createTextDocumentExtraction } from "@arlequins/agent-core";
+import {
+  createDocumentSecurityScanner,
+  createRichDocumentExtraction,
+} from "@arlequins/agent-core";
 import { createBeatMcpServer } from "@arlequins/agent-mcp";
 import {
   createOllamaEmbeddingProvider,
@@ -14,8 +17,13 @@ import {
 } from "../adaptors/agent-retrieval-s3";
 import { createAwsBedrockConversePort } from "../adaptors/bedrock-converse";
 import { deriveBeatSession } from "../adaptors/oidc-identity";
+import { createS3DocumentSource } from "../adaptors/s3-document-source";
 import { createS3JsonObjectStore } from "../adaptors/s3-json-store";
-import type { CreateTRPCContextOptions, TRPCContext } from "../context";
+import type {
+  CreateTRPCContextOptions,
+  TRPCContext,
+  TRPCServices,
+} from "../context";
 import type { ModelProvider } from "../model-errors";
 import {
   createDeterministicTestModelProvider,
@@ -32,6 +40,7 @@ function bootstrapAdministratorIdentities() {
 }
 
 let repository: ReturnType<typeof createS3AgentPlatformRepository> | undefined;
+let source: ReturnType<typeof createS3DocumentSource> | undefined;
 
 function agentRepository() {
   if (repository) return repository;
@@ -48,6 +57,55 @@ function agentRepository() {
   return repository;
 }
 
+function documentSource() {
+  if (source) return source;
+  if (!serverEnv.S3_AGENT_BUCKET) return undefined;
+  source = createS3DocumentSource({
+    bucket: serverEnv.S3_AGENT_BUCKET,
+    endpoint: serverEnv.S3_AGENT_ENDPOINT,
+    forcePathStyle: serverEnv.S3_AGENT_FORCE_PATH_STYLE,
+    prefix: serverEnv.S3_AGENT_PREFIX ?? serverEnv.SST_STAGE ?? "local",
+  });
+  return source;
+}
+
+function embeddingProvider() {
+  return serverEnv.OLLAMA_BASE_URL
+    ? createOllamaEmbeddingProvider({
+        baseUrl: serverEnv.OLLAMA_BASE_URL,
+        model: serverEnv.OLLAMA_EMBEDDING_MODEL,
+      })
+    : undefined;
+}
+
+function quotaPolicy() {
+  return {
+    maxCompletionTokens: serverEnv.AGENT_MAX_COMPLETION_TOKENS ?? 2_048,
+    maxDocuments: serverEnv.AGENT_MAX_DOCUMENTS ?? 250,
+    maxMemories: serverEnv.AGENT_MAX_MEMORIES ?? 5_000,
+    maxMessages: serverEnv.AGENT_MAX_MESSAGES ?? 50_000,
+    maxMonthlyModelTokens:
+      serverEnv.AGENT_MAX_MONTHLY_MODEL_TOKENS ?? 1_000_000,
+    maxStorageBytes: serverEnv.AGENT_MAX_STORAGE_BYTES ?? 104_857_600,
+  };
+}
+
+export function createAgentWorkerServices(): TRPCServices {
+  const agent = agentRepository();
+  const embedding = embeddingProvider();
+  return {
+    agent,
+    documentExtraction: createRichDocumentExtraction(),
+    documentSecurity: createDocumentSecurityScanner(),
+    ...(documentSource() ? { documentSource: documentSource() } : {}),
+    embedding,
+    knowledgeSearch: createS3KnowledgeSearch(agent, { embedding }),
+    memorySearch: createS3MemorySearch(agent),
+    modelProvider: "none",
+    quota: quotaPolicy(),
+  };
+}
+
 export async function createTRPCContext(
   options: CreateTRPCContextOptions,
 ): Promise<TRPCContext> {
@@ -56,12 +114,7 @@ export async function createTRPCContext(
     ? deriveBeatSession(tokenSession, bootstrapAdministratorIdentities())
     : null;
   const agent = agentRepository();
-  const embedding = serverEnv.OLLAMA_BASE_URL
-    ? createOllamaEmbeddingProvider({
-        baseUrl: serverEnv.OLLAMA_BASE_URL,
-        model: serverEnv.OLLAMA_EMBEDDING_MODEL,
-      })
-    : undefined;
+  const embedding = embeddingProvider();
   const testModelEnabled =
     serverEnv.SST_STAGE === "test" && serverEnv.AGENT_TEST_MODEL;
   const model = testModelEnabled
@@ -125,7 +178,11 @@ export async function createTRPCContext(
         serverEnv.BEDROCK_MODEL_ID ??
         serverEnv.OLLAMA_MODEL,
       embedding,
-      documentExtraction: createTextDocumentExtraction(),
+      documentExtraction: createRichDocumentExtraction(),
+      documentSecurity: createDocumentSecurityScanner(),
+      ...(documentSource() ? { documentSource: documentSource() } : {}),
+      ...(options.jobQueue ? { jobQueue: options.jobQueue } : {}),
+      quota: quotaPolicy(),
       tools,
     },
   };

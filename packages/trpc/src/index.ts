@@ -1,4 +1,11 @@
-export { createTRPCContext } from "./composition/create-context";
+export {
+  assertWorkspaceQuota,
+  WorkspaceQuotaExceededError,
+} from "./application/workspace-quota";
+export {
+  createAgentWorkerServices,
+  createTRPCContext,
+} from "./composition/create-context";
 export { TRPC_HTTP_PATH } from "./constants";
 export type { ModelProvider } from "./model-errors";
 export {

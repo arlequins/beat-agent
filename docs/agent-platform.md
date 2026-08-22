@@ -62,8 +62,22 @@ candidate -> approved
 로컬 `nomic-embed-text`를 사용할 수 있으면 embedding cosine score를 사용하고,
 그렇지 않으면 keyword score로 대체한다.
 
-PDF와 Office 문서는 추후 malware scan과 서버 parser를 거치는 별도 비동기
-ingestion으로 추가한다. 브라우저가 binary 문서를 해석하지 않는다.
+PDF와 Open XML Office(`docx`, `pptx`, `xlsx`) 문서는 브라우저가 발급받은
+5분짜리 presigned URL로 workspace 전용 S3 prefix에 직접 올린다. API가 크기,
+content type과 SHA-256 metadata를 다시 확인한 뒤 `extract.document` 작업을
+FIFO 큐에 넣고, worker가 다음 순서로 처리한다.
+
+```text
+upload -> pending -> signature/active-content scan -> server parser
+       -> immutable extracted blob + chunks -> completed
+       -> retry 3회 -> failed + DLQ
+```
+
+기본 보안 검사는 EICAR signature, PDF JavaScript/launch/embedded file, Office
+macro·OLE embedded object, 파일 signature mismatch와 압축 폭탄 한도를 차단한다.
+이는 일반 목적 백신의 전체 signature database를 대체하지 않는다. 외부에서 받은
+고위험 문서를 허용해야 하는 조직 운영에서는 같은 fail-closed port 앞에 관리형
+malware scanner를 추가하고, 통과 tag가 없는 객체는 worker가 읽지 않도록 한다.
 
 답변 Citation은 다음을 보존한다.
 
@@ -109,6 +123,12 @@ HTTP `409`, job ID와 예상 완료 시각을 반환한다. Lambda 중단으로 
 문서 색인, 피드백 조사와 주기적 평가는 SQS FIFO에서 같은 사용자 message group
 안에 직렬화한다. worker는 at-least-once 실행을 전제로 멱등해야 한다.
 
+색인·조사·평가 상태는 `queued -> running -> completed|failed`로 전이한다.
+`running`에는 lease 만료 시각과 attempt가 기록되며, 완료된 작업 재전달은 아무
+변경 없이 끝난다. 매주 EventBridge가 승인된 평가 사례가 있는 workspace만 새
+`evaluate.retrieval` 작업으로 만들고, 세 번 실패한 메시지는 14일 보존 DLQ와
+CloudWatch 경보로 보낸다.
+
 ## 비용 정책
 
 - S3, Lambda와 SQS를 기본 서버리스 구성으로 사용한다.
@@ -118,3 +138,7 @@ HTTP `409`, job ID와 예상 완료 시각을 반환한다. Lambda 중단으로 
   Lambda 권한은 `bedrock:InvokeModelWithResponseStream` 하나로 제한한다.
 - S3 Vectors와 별도 백업·복제는 데이터량과 복구 목표가 필요해질 때 opt-in한다.
 - Budget과 Cost Anomaly alert는 모델 사용 전에 설정한다.
+- 애플리케이션은 기본적으로 문서 250개, 기억 5,000개, 메시지 50,000개,
+  문서 100MB, workspace당 월 1,000,000 모델 토큰을 hard limit로 적용한다.
+  Bedrock 1회 최대 출력 2,048토큰을 호출 전에 예약하므로 동시 요청으로 월 한도를
+  조용히 넘기지 않는다. 일일 토큰 CloudWatch 경보는 월 한도의 1/30에서 울린다.

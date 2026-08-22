@@ -23,13 +23,32 @@ const feedbackLabels = {
   "needs-investigation": "조사 요청",
 } as const;
 
+const binaryContentTypes = {
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pdf: "application/pdf",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+} as const;
+
+async function fileSha256(file: File) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    await file.arrayBuffer(),
+  );
+  return [...new Uint8Array(digest)]
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 type FeedbackKind = keyof typeof feedbackLabels;
 
 function MessageCitations({
   messageId,
+  onCreateEvaluation,
   workspaceId,
 }: {
   messageId: string;
+  onCreateEvaluation?: (chunkIds: string[]) => void;
   workspaceId: string;
 }) {
   const trpc = useTRPC();
@@ -58,6 +77,19 @@ function MessageCitations({
           </li>
         ))}
       </ul>
+      {onCreateEvaluation ? (
+        <button
+          className="text-muted-foreground mt-3 text-xs hover:text-foreground hover:underline"
+          onClick={() =>
+            onCreateEvaluation(
+              citations.data.map((citation) => citation.chunkId),
+            )
+          }
+          type="button"
+        >
+          이 답변을 평가 사례로 추가
+        </button>
+      ) : null}
     </details>
   );
 }
@@ -68,6 +100,7 @@ export function AgentChat() {
   const [workspaceId, setWorkspaceId] = useState<string>();
   const [conversationId, setConversationId] = useState<string>();
   const [workspaceName, setWorkspaceName] = useState("");
+  const [binaryDocumentFile, setBinaryDocumentFile] = useState<File>();
   const [documentContent, setDocumentContent] = useState("");
   const [documentContentType, setDocumentContentType] = useState<
     "text/html" | "text/markdown" | "text/plain"
@@ -81,6 +114,7 @@ export function AgentChat() {
   const [streamError, setStreamError] = useState<string>();
   const [feedbackNotice, setFeedbackNotice] = useState<string>();
   const [isStreaming, setIsStreaming] = useState(false);
+  const handoffAppliedRef = useRef(false);
   const messageScrollRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const workspaces = useQuery(trpc.agent.workspaces.queryOptions());
@@ -105,6 +139,12 @@ export function AgentChat() {
   const indexRuns = useQuery({
     ...trpc.agent.indexRuns.queryOptions({ workspaceId: workspaceId ?? "" }),
     enabled: Boolean(workspaceId),
+    refetchInterval: (query) =>
+      query.state.data?.some((run) =>
+        ["queued", "running"].includes(run.status),
+      )
+        ? 2_000
+        : false,
   });
   const memories = useQuery({
     ...trpc.agent.memories.queryOptions({ workspaceId: workspaceId ?? "" }),
@@ -121,6 +161,42 @@ export function AgentChat() {
     ...trpc.agent.auditLog.queryOptions({ workspaceId: workspaceId ?? "" }),
     enabled: Boolean(workspaceId && isOwner),
   });
+  const evaluationCases = useQuery({
+    ...trpc.agent.evaluationCases.queryOptions({
+      workspaceId: workspaceId ?? "",
+    }),
+    enabled: Boolean(workspaceId && isOwner),
+  });
+  const evaluationRuns = useQuery({
+    ...trpc.agent.evaluationRuns.queryOptions({
+      workspaceId: workspaceId ?? "",
+    }),
+    enabled: Boolean(workspaceId && isOwner),
+    refetchInterval: (query) =>
+      query.state.data?.some((run) =>
+        ["queued", "running"].includes(run.status),
+      )
+        ? 2_000
+        : false,
+  });
+  const investigations = useQuery({
+    ...trpc.agent.investigations.queryOptions({
+      workspaceId: workspaceId ?? "",
+    }),
+    enabled: Boolean(workspaceId && isOwner),
+    refetchInterval: (query) =>
+      query.state.data?.some((item) =>
+        ["queued", "running"].includes(item.status),
+      )
+        ? 2_000
+        : false,
+  });
+  const activeRelease = useQuery({
+    ...trpc.agent.activeRelease.queryOptions({
+      workspaceId: workspaceId ?? "",
+    }),
+    enabled: Boolean(workspaceId && isOwner),
+  });
 
   useEffect(() => {
     if (!workspaceId && workspaces.data?.[0])
@@ -132,6 +208,29 @@ export function AgentChat() {
       setConversationId(conversations.data[0].id);
     }
   }, [conversationId, conversations.data]);
+
+  useEffect(() => {
+    if (handoffAppliedRef.current) return;
+    handoffAppliedRef.current = true;
+    const parameters = new URLSearchParams(window.location.search);
+    if (parameters.get("handoff") !== "beat-blog") return;
+    const title = parameters.get("title")?.slice(0, 200);
+    const url = parameters.get("url")?.slice(0, 2_000);
+    const excerpt = parameters.get("excerpt")?.slice(0, 1_500);
+    if (!title || !url) return;
+    setQuestion(
+      [
+        `다음 Beat 글을 바탕으로 질문에 답해줘.`,
+        `제목: ${title}`,
+        `주소: ${url}`,
+        excerpt ? `발췌: ${excerpt}` : "",
+        "",
+        "질문: ",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }, []);
 
   useEffect(() => {
     const node = messageScrollRef.current;
@@ -183,6 +282,28 @@ export function AgentChat() {
             workspaceId: workspaceId ?? "",
           }),
         });
+      },
+    }),
+  );
+  const requestDocumentUpload = useMutation(
+    trpc.agent.requestDocumentUpload.mutationOptions(),
+  );
+  const completeDocumentUpload = useMutation(
+    trpc.agent.completeDocumentUpload.mutationOptions({
+      onSuccess: async () => {
+        setBinaryDocumentFile(undefined);
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: trpc.agent.documents.queryKey({
+              workspaceId: workspaceId ?? "",
+            }),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.agent.indexRuns.queryKey({
+              workspaceId: workspaceId ?? "",
+            }),
+          }),
+        ]);
       },
     }),
   );
@@ -255,6 +376,36 @@ export function AgentChat() {
         ),
     }),
   );
+  const createEvaluationCase = useMutation(
+    trpc.agent.createEvaluationCase.mutationOptions({
+      onSuccess: async () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.agent.evaluationCases.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        }),
+    }),
+  );
+  const runEvaluation = useMutation(
+    trpc.agent.runEvaluation.mutationOptions({
+      onSuccess: async () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.agent.evaluationRuns.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        }),
+    }),
+  );
+  const publishRelease = useMutation(
+    trpc.agent.publishRelease.mutationOptions({
+      onSuccess: async () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.agent.activeRelease.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        }),
+    }),
+  );
   function submitWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = workspaceName.trim();
@@ -268,10 +419,45 @@ export function AgentChat() {
     createWorkspace.mutate({ name, slug });
   }
 
-  function submitDocument(event: FormEvent<HTMLFormElement>) {
+  async function submitDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!workspaceId || !documentContent.trim() || !documentFilename.trim())
+    if (!workspaceId || !documentFilename.trim()) return;
+    if (binaryDocumentFile) {
+      setDocumentFileError(undefined);
+      try {
+        const extension = binaryDocumentFile.name
+          .split(".")
+          .pop()
+          ?.toLowerCase();
+        const contentType =
+          binaryContentTypes[extension as keyof typeof binaryContentTypes];
+        if (!contentType) throw new Error("지원하지 않는 문서 형식입니다.");
+        const contentHash = await fileSha256(binaryDocumentFile);
+        const request = {
+          contentHash,
+          contentType,
+          filename: binaryDocumentFile.name,
+          sizeBytes: binaryDocumentFile.size,
+          workspaceId,
+        };
+        const target = await requestDocumentUpload.mutateAsync(request);
+        const response = await fetch(target.url, {
+          body: binaryDocumentFile,
+          headers: target.headers,
+          method: "PUT",
+        });
+        if (!response.ok)
+          throw new Error(`문서 업로드에 실패했습니다 (${response.status}).`);
+        await completeDocumentUpload.mutateAsync({
+          ...request,
+          sourceUri: target.sourceUri,
+        });
+      } catch (error) {
+        setDocumentFileError(messageError(error));
+      }
       return;
+    }
+    if (!documentContent.trim()) return;
     ingestTextDocument.mutate({
       content: documentContent,
       contentType: documentContentType,
@@ -283,6 +469,17 @@ export function AgentChat() {
   async function selectDocumentFile(file?: File) {
     setDocumentFileError(undefined);
     if (!file) return;
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (extension && extension in binaryContentTypes) {
+      if (file.size > 10_000_000) {
+        setDocumentFileError("PDF·Office 문서는 10MB 이하여야 합니다.");
+        return;
+      }
+      setBinaryDocumentFile(file);
+      setDocumentFilename(file.name);
+      setDocumentContent("");
+      return;
+    }
     if (
       !/\.(html?|md|txt)$/i.test(file.name) &&
       !["text/html", "text/markdown", "text/plain"].includes(file.type)
@@ -297,6 +494,7 @@ export function AgentChat() {
       return;
     }
     setDocumentFilename(file.name);
+    setBinaryDocumentFile(undefined);
     setDocumentContentType(
       file.type === "text/html" || /\.html?$/i.test(file.name)
         ? "text/html"
@@ -485,7 +683,7 @@ export function AgentChat() {
           </summary>
           <form className="mt-3 space-y-2" onSubmit={submitDocument}>
             <Input
-              accept=".html,.htm,.md,.txt,text/html,text/markdown,text/plain"
+              accept=".docx,.html,.htm,.md,.pdf,.pptx,.txt,.xlsx,application/pdf,text/html,text/markdown,text/plain"
               aria-label="문서 파일 선택"
               onChange={(event) => selectDocumentFile(event.target.files?.[0])}
               type="file"
@@ -497,21 +695,45 @@ export function AgentChat() {
             />
             <Textarea
               aria-label="문서 내용"
+              disabled={Boolean(binaryDocumentFile)}
               onChange={(event) => setDocumentContent(event.target.value)}
-              placeholder="텍스트를 붙여 넣으면 이 워크스페이스에서 검색합니다."
+              placeholder={
+                binaryDocumentFile
+                  ? "PDF·Office 문서는 서버에서 안전 검사 후 비동기로 추출합니다."
+                  : "텍스트를 붙여 넣으면 이 워크스페이스에서 검색합니다."
+              }
               value={documentContent}
             />
             <Button
               className="w-full"
-              disabled={!documentContent.trim() || ingestTextDocument.isPending}
+              disabled={
+                (!binaryDocumentFile && !documentContent.trim()) ||
+                ingestTextDocument.isPending ||
+                requestDocumentUpload.isPending ||
+                completeDocumentUpload.isPending
+              }
               type="submit"
               variant="outline"
             >
-              {ingestTextDocument.isPending ? "등록 중…" : "문서 등록"}
+              {ingestTextDocument.isPending ||
+              requestDocumentUpload.isPending ||
+              completeDocumentUpload.isPending
+                ? "등록 중…"
+                : "문서 등록"}
             </Button>
             {ingestTextDocument.isError && (
               <p className="text-destructive text-xs">
                 {messageError(ingestTextDocument.error)}
+              </p>
+            )}
+            {requestDocumentUpload.isError && (
+              <p className="text-destructive text-xs">
+                {messageError(requestDocumentUpload.error)}
+              </p>
+            )}
+            {completeDocumentUpload.isError && (
+              <p className="text-destructive text-xs">
+                {messageError(completeDocumentUpload.error)}
               </p>
             )}
             {documentFileError && (
@@ -667,9 +889,90 @@ export function AgentChat() {
             문서 {usage.data?.documents ?? 0} · 메시지{" "}
             {usage.data?.messages ?? 0} · 기억 {usage.data?.memories ?? 0}
           </p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            저장 {Math.ceil((usage.data?.storageBytes ?? 0) / 1024)}KB · 이달
+            모델 {(usage.data?.monthlyModelTokens ?? 0).toLocaleString()} 토큰
+          </p>
           <p className="text-muted-foreground mt-2 text-xs">
             소유자만 문서 삭제와 기억 검토를 수행할 수 있습니다.
           </p>
+          {isOwner && workspaceId ? (
+            <div className="mt-4 space-y-3 border-t pt-3 text-xs">
+              <div>
+                <p className="font-medium">검토형 학습</p>
+                <p className="text-muted-foreground mt-1">
+                  평가 사례 {evaluationCases.data?.length ?? 0}개 · 최근 실행{" "}
+                  {evaluationRuns.data?.[0]?.status ?? "없음"}
+                </p>
+                {evaluationRuns.data?.[0]?.summary ? (
+                  <p className="text-muted-foreground mt-1">
+                    Citation recall{" "}
+                    {Math.round(
+                      evaluationRuns.data[0].summary.averageCitationRecall *
+                        100,
+                    )}
+                    %
+                  </p>
+                ) : null}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    disabled={
+                      !evaluationCases.data?.length || runEvaluation.isPending
+                    }
+                    onClick={() => runEvaluation.mutate({ workspaceId })}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    평가 실행
+                  </Button>
+                  <Button
+                    disabled={publishRelease.isPending}
+                    onClick={() =>
+                      publishRelease.mutate({
+                        minimumCitationRecall: 0.75,
+                        workspaceId,
+                      })
+                    }
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    검증본 활성화
+                  </Button>
+                </div>
+                <p className="text-muted-foreground mt-2">
+                  활성 버전 {activeRelease.data?.releaseId ?? "없음"}
+                </p>
+                {(runEvaluation.isError || publishRelease.isError) && (
+                  <p className="text-destructive mt-2">
+                    {messageError(runEvaluation.error ?? publishRelease.error)}
+                  </p>
+                )}
+              </div>
+              {investigations.data?.length ? (
+                <div>
+                  <p className="font-medium">조사 요청</p>
+                  <ul className="mt-2 space-y-2">
+                    {investigations.data.slice(0, 3).map((item) => (
+                      <li
+                        className="rounded-lg bg-background/70 p-2"
+                        key={item.id}
+                      >
+                        <p>{item.status}</p>
+                        {item.findings ? (
+                          <p className="text-muted-foreground mt-1">
+                            근거 {item.findings.citationCount}개 ·{" "}
+                            {item.resolution}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {isOwner && workspaceId && (
             <form
               className="mt-3 flex gap-2"
@@ -732,7 +1035,7 @@ export function AgentChat() {
           ref={messageScrollRef}
         >
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
-            {messages.data?.map((message) => (
+            {messages.data?.map((message, messageIndex) => (
               <article
                 className={`group flex w-full items-start gap-3 ${message.role === "user" ? "justify-end" : ""}`}
                 key={message.id}
@@ -775,6 +1078,22 @@ export function AgentChat() {
                   {message.role === "assistant" && workspaceId && (
                     <MessageCitations
                       messageId={message.id}
+                      onCreateEvaluation={
+                        isOwner
+                          ? (chunkIds) => {
+                              const question = messages.data
+                                .slice(0, messageIndex)
+                                .reverse()
+                                .find((item) => item.role === "user")?.content;
+                              if (!question || !chunkIds.length) return;
+                              createEvaluationCase.mutate({
+                                expectedChunkIds: chunkIds,
+                                question,
+                                workspaceId,
+                              });
+                            }
+                          : undefined
+                      }
                       workspaceId={workspaceId}
                     />
                   )}
