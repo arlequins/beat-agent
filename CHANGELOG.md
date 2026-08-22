@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.2](https://github.com/arlequins/beat-agent/compare/v0.12.1...v0.12.2) (2026-08-22)
+
+
+### Bug Fixes
+
+* **api:** tag production alarms explicitly ([#66](https://github.com/arlequins/beat-agent/issues/66)) ([92068bb](https://github.com/arlequins/beat-agent/commit/92068bba5329f2e87ccd2b873f1710716c9d3bb7))
+
 ## [0.12.1](https://github.com/arlequins/beat-agent/compare/v0.12.0...v0.12.1) (2026-08-22)
 
 
