@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.4](https://github.com/arlequins/beat-agent/compare/v0.12.3...v0.12.4) (2026-08-22)
+
+
+### Bug Fixes
+
+* **web:** flush final agent stream event ([0af52a6](https://github.com/arlequins/beat-agent/commit/0af52a63924bf72d8cdfc138953d4732ccc2cb3e))
+
 ## [0.12.3](https://github.com/arlequins/beat-agent/compare/v0.12.2...v0.12.3) (2026-08-22)
 
 
