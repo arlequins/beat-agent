@@ -13,7 +13,9 @@ function pendingTagStart(value: string): number {
   for (let index = value.length - 1; index >= 0; index -= 1) {
     if (value[index] !== "<") continue;
     const suffix = lower.slice(index);
-    if (TAG_PREFIXES.some((prefix) => prefix.startsWith(suffix))) return index;
+    const tagPrefix = suffix.trimEnd();
+    if (TAG_PREFIXES.some((prefix) => prefix.startsWith(tagPrefix)))
+      return index;
   }
   return value.length;
 }

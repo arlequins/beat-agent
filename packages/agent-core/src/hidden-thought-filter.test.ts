@@ -33,4 +33,11 @@ describe("createHiddenThoughtFilter", () => {
     expect(filter.push("<analysis>비공개")).toBe("");
     expect(filter.flush()).toBe("");
   });
+
+  it("waits for a split tag terminator before entering hidden mode", () => {
+    const filter = createHiddenThoughtFilter();
+
+    expect(filter.push("<analysis ")).toBe("");
+    expect(filter.push(">비공개</analysis>완료")).toBe("완료");
+  });
 });
