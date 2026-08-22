@@ -11,6 +11,8 @@ import {
   AppRouter,
   assertWorkspaceQuota,
   createTRPCContext,
+  IDEMPOTENCY_CONFLICT_CODE,
+  idempotencyConflictMessage,
   MODEL_REQUEST_FAILED_CODE,
   modelRequestFailureMessage,
   TRPC_HTTP_PATH,
@@ -52,6 +54,26 @@ export type CreateApiAppOptions = {
   rateLimit?: { requests: number; windowMs: number };
   rateLimiter?: false | RateLimitPort;
 };
+
+export function agentStreamFailure(
+  error: unknown,
+  provider: Parameters<typeof modelRequestFailureMessage>[0],
+  requestId: string,
+) {
+  const idempotencyConflict =
+    error instanceof Error && error.name === "ObjectConflictError";
+  return {
+    code: idempotencyConflict
+      ? IDEMPOTENCY_CONFLICT_CODE
+      : MODEL_REQUEST_FAILED_CODE,
+    message: idempotencyConflict
+      ? idempotencyConflictMessage
+      : modelRequestFailureMessage(provider),
+    provider,
+    requestId,
+    type: "error" as const,
+  };
+}
 
 let coldStart = true;
 let configuredQueue: JobQueuePort | undefined;
@@ -409,7 +431,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
           for await (const event of streamAgentCompletion(
             trpcContext.services,
             session.user.id,
-            parsed.data,
+            { ...parsed.data, requestId: context.get("requestId") },
             lease,
           )) {
             if (event.type === "usage")
@@ -427,15 +449,13 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
           context.get("logger").error("agent.stream.failed", { error });
           controller.enqueue(
             encoder.encode(
-              `${JSON.stringify({
-                code: MODEL_REQUEST_FAILED_CODE,
-                message: modelRequestFailureMessage(
+              `${JSON.stringify(
+                agentStreamFailure(
+                  error,
                   trpcContext.services.modelProvider,
+                  context.get("requestId"),
                 ),
-                provider: trpcContext.services.modelProvider,
-                requestId: context.get("requestId"),
-                type: "error",
-              })}\n`,
+              )}\n`,
             ),
           );
         } finally {
@@ -447,6 +467,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
       headers: {
         "Cache-Control": "no-cache",
         "Content-Type": "application/x-ndjson",
+        "X-Request-Id": context.get("requestId"),
         "X-Accel-Buffering": "no",
       },
     });

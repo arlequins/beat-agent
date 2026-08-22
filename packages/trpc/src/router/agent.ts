@@ -30,6 +30,7 @@ import {
   WorkspaceQuotaExceededError,
 } from "../application/workspace-quota";
 import {
+  idempotencyConflictMessage,
   modelNotConfiguredMessage,
   modelRequestFailureMessage,
 } from "../model-errors";
@@ -379,6 +380,12 @@ export const agentRouter = {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: error.message,
+          });
+        if (error instanceof Error && error.name === "ObjectConflictError")
+          throw new TRPCError({
+            code: "CONFLICT",
+            cause: error,
+            message: idempotencyConflictMessage,
           });
         throw new TRPCError({
           code: "BAD_GATEWAY",

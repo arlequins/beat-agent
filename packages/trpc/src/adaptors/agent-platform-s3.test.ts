@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   AgentJobBusyError,
   createS3AgentPlatformRepository,
+  type S3AgentPlatformRepository,
 } from "./agent-platform-s3";
-import { createMemoryJsonObjectStore } from "./s3-json-store";
+import {
+  createMemoryJsonObjectStore,
+  type JsonObjectStore,
+  ObjectAlreadyExistsError,
+  ObjectConflictError,
+} from "./s3-json-store";
 
 async function fixture() {
   const store = createMemoryJsonObjectStore();
@@ -15,6 +21,39 @@ async function fixture() {
   });
   const actor = { userId: "user-1", workspaceId: workspace.id };
   return { actor, repository, store, workspace };
+}
+
+function idempotencyRetryStore() {
+  const base = createMemoryJsonObjectStore();
+  let reservationCreateRetry = false;
+  let eventCreateRetry = false;
+  let reservationReplaceConflict = false;
+  const store: JsonObjectStore = {
+    ...base,
+    async create<T>(key: string, value: T) {
+      const record = await base.create(key, value);
+      if (key.includes("/idempotency/messages/") && !reservationCreateRetry) {
+        reservationCreateRetry = true;
+        throw new ObjectAlreadyExistsError(key);
+      }
+      if (key.includes("/events/idempotent-") && !eventCreateRetry) {
+        eventCreateRetry = true;
+        throw new ObjectAlreadyExistsError(key);
+      }
+      return record;
+    },
+    async replace<T>(key: string, value: T, etag: string) {
+      if (
+        key.includes("/idempotency/messages/") &&
+        !reservationReplaceConflict
+      ) {
+        reservationReplaceConflict = true;
+        throw new ObjectConflictError(key);
+      }
+      return base.replace(key, value, etag);
+    },
+  };
+  return store;
 }
 
 describe("S3 agent platform repository", () => {
@@ -48,6 +87,62 @@ describe("S3 agent platform repository", () => {
         role: "user",
       }),
     ).rejects.toThrow("archived");
+  });
+
+  it("reuses an idempotent message across retries and rejects key reuse with new content", async () => {
+    const { actor, repository, store } = await fixture();
+    const conversation = await repository.createConversation(actor);
+    const key = "chat-retry-20260822";
+    const first = await repository.addMessage(actor, {
+      content: "한 번만 저장되어야 합니다.",
+      conversationId: conversation.id,
+      idempotencyKey: key,
+      role: "user",
+    });
+    const retry = await repository.addMessage(actor, {
+      content: "한 번만 저장되어야 합니다.",
+      conversationId: conversation.id,
+      idempotencyKey: key,
+      role: "user",
+    });
+    expect(retry.id).toBe(first.id);
+    expect(await repository.listMessages(actor, conversation.id)).toHaveLength(
+      1,
+    );
+    expect(
+      await store.list(`workspaces/${actor.workspaceId}/events/`),
+    ).toHaveLength(3);
+    await expect(
+      repository.addMessage(actor, {
+        content: "같은 키의 다른 내용",
+        conversationId: conversation.id,
+        idempotencyKey: key,
+        role: "user",
+      }),
+    ).rejects.toThrow("concurrently");
+  });
+
+  it("recovers when S3 acknowledges a conditional write after a retryable race", async () => {
+    const store = idempotencyRetryStore();
+    const repository: S3AgentPlatformRepository =
+      createS3AgentPlatformRepository(store);
+    const workspace = await repository.createWorkspace({
+      name: "Arlequin",
+      slug: "arlequin-race",
+      userId: "user-1",
+    });
+    const actor = { userId: "user-1", workspaceId: workspace.id };
+    const conversation = await repository.createConversation(actor);
+    const message = await repository.addMessage(actor, {
+      content: "조건부 생성 재시도",
+      conversationId: conversation.id,
+      idempotencyKey: "chat-race-20260822",
+      role: "user",
+    });
+    expect(message.content).toBe("조건부 생성 재시도");
+    expect(await repository.listMessages(actor, conversation.id)).toHaveLength(
+      1,
+    );
   });
 
   it("keeps deleted personal records as tombstoned immutable history", async () => {

@@ -38,6 +38,7 @@ type Message = {
   createdAt: string;
   id: string;
   metadata?: {
+    idempotencyKey?: string;
     knowledgeReleaseId?: string;
     latencyMs?: number;
     promptVersion?: string;
@@ -46,6 +47,12 @@ type Message = {
   };
   model?: string;
   role: "assistant" | "system" | "user";
+};
+type MessageIdempotencyRecord = {
+  contentHash: string;
+  conversationId: string;
+  messageId: string;
+  status: "committed" | "reserved";
 };
 type MemoryRecord = {
   content: string;
@@ -224,7 +231,8 @@ function stableUuid(value: string) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function eventKey(workspaceId: string, id: string) {
+function eventKey(workspaceId: string, id: string, stable = false) {
+  if (stable) return `workspaces/${workspaceId}/events/idempotent-${id}.json`;
   return `workspaces/${workspaceId}/events/${Date.now()
     .toString()
     .padStart(13, "0")}-${id}.json`;
@@ -356,19 +364,28 @@ export function createS3AgentPlatformRepository(
     action: string,
     subjectId?: string,
     metadata?: Record<string, unknown>,
+    options?: { stableId?: string },
   ) {
     const createdAt = timestamp();
+    const stableId = options?.stableId;
     const event: AuditEvent = {
       action,
       actorUserId: actor.userId,
       createdAt,
-      id: randomUUID(),
+      id: stableId ?? randomUUID(),
       ...(metadata ? { metadata } : {}),
       ...(subjectId ? { subjectId } : {}),
       type: "audit",
       workspaceId: actor.workspaceId,
     };
-    await store.create(eventKey(actor.workspaceId, event.id), event);
+    try {
+      await store.create(
+        eventKey(actor.workspaceId, event.id, stableId !== undefined),
+        event,
+      );
+    } catch (error) {
+      if (!(stableId && error instanceof ObjectAlreadyExistsError)) throw error;
+    }
     return event;
   }
 
@@ -618,6 +635,7 @@ export function createS3AgentPlatformRepository(
       input: {
         content: string;
         conversationId: string;
+        idempotencyKey?: string;
         metadata?: Message["metadata"];
         model?: string;
         role: "assistant" | "system" | "user";
@@ -625,6 +643,70 @@ export function createS3AgentPlatformRepository(
     ) {
       await assertMember(actor);
       await ensureConversation(actor, input.conversationId);
+      const { idempotencyKey, ...messageInput } = input;
+      const contentHash = createHash("sha256")
+        .update(
+          JSON.stringify({
+            content: messageInput.content,
+            conversationId: messageInput.conversationId,
+            model: messageInput.model,
+            role: messageInput.role,
+          }),
+        )
+        .digest("hex");
+      const reservationKey = idempotencyKey
+        ? stateKey(
+            actor.workspaceId,
+            "idempotency/messages",
+            createHash("sha256")
+              .update(`${actor.userId}:${idempotencyKey}`)
+              .digest("hex"),
+          )
+        : undefined;
+      let reservation:
+        | {
+            etag?: string;
+            value: MessageIdempotencyRecord;
+          }
+        | undefined;
+      if (reservationKey) {
+        reservation = await store.get<MessageIdempotencyRecord>(reservationKey);
+        if (reservation && reservation.value.contentHash !== contentHash)
+          throw new ObjectConflictError(reservationKey);
+        if (!reservation) {
+          const candidate: MessageIdempotencyRecord = {
+            contentHash,
+            conversationId: input.conversationId,
+            messageId: stableUuid(
+              `${actor.workspaceId}:${actor.userId}:${idempotencyKey}`,
+            ),
+            status: "reserved",
+          };
+          try {
+            const created = await store.create(reservationKey, candidate);
+            reservation = { etag: created.etag, value: candidate };
+          } catch (error) {
+            if (!(error instanceof ObjectAlreadyExistsError)) throw error;
+            reservation =
+              (await store.get<MessageIdempotencyRecord>(reservationKey)) ??
+              undefined;
+            if (!reservation) throw error;
+            if (reservation.value.contentHash !== contentHash)
+              throw new ObjectConflictError(reservationKey);
+          }
+        }
+        if (reservation.value.status === "committed") {
+          const existing = await store.get<Message>(
+            stateKey(
+              actor.workspaceId,
+              `messages/${input.conversationId}`,
+              reservation.value.messageId,
+            ),
+          );
+          if (existing) return publicMessage(existing.value);
+          throw new Error("Idempotent message record is missing its message");
+        }
+      }
       const createdAt = timestamp();
       await mutate<Conversation>(
         store,
@@ -638,23 +720,59 @@ export function createS3AgentPlatformRepository(
         },
       );
       const message: Message = {
-        ...input,
+        ...messageInput,
         createdAt,
-        id: randomUUID(),
+        id: reservation?.value.messageId ?? randomUUID(),
       };
-      await store.create(
-        stateKey(
-          actor.workspaceId,
-          `messages/${input.conversationId}`,
-          message.id,
-        ),
-        message,
+      const messageKey = stateKey(
+        actor.workspaceId,
+        `messages/${input.conversationId}`,
+        message.id,
       );
-      await appendEvent(actor, "message.created", message.id, {
-        conversationId: input.conversationId,
-        role: input.role,
-      });
-      return publicMessage(message);
+      let created = true;
+      let persistedMessage = message;
+      try {
+        await store.create(messageKey, message);
+      } catch (error) {
+        if (!(reservation && error instanceof ObjectAlreadyExistsError))
+          throw error;
+        created = false;
+      }
+      if (!created) {
+        const existing = await store.get<Message>(messageKey);
+        if (!existing) throw new Error("Idempotent message was not found");
+        persistedMessage = existing.value;
+        if (reservation?.value.status === "committed")
+          return publicMessage(existing.value);
+      }
+      await appendEvent(
+        actor,
+        "message.created",
+        persistedMessage.id,
+        {
+          conversationId: input.conversationId,
+          role: input.role,
+        },
+        reservation
+          ? { stableId: stableUuid(`message-event:${persistedMessage.id}`) }
+          : undefined,
+      );
+      if (reservationKey && reservation?.value.status === "reserved") {
+        const current =
+          await store.get<MessageIdempotencyRecord>(reservationKey);
+        if (current?.etag) {
+          try {
+            await store.replace(
+              reservationKey,
+              { ...current.value, status: "committed" },
+              current.etag,
+            );
+          } catch (error) {
+            if (!(error instanceof ObjectConflictError)) throw error;
+          }
+        }
+      }
+      return publicMessage(persistedMessage);
     },
     async listMessages(actor: WorkspaceActor, conversationId: string) {
       await assertMember(actor);

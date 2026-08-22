@@ -2,12 +2,34 @@ import type { LogRecord } from "@arlequins/logger";
 import { createLogger } from "@arlequins/logger";
 import { describe, expect, it } from "vitest";
 
-import { createApiApp } from "./app";
+import { agentStreamFailure, createApiApp } from "./app";
 
 describe("API app", () => {
   const app = createApiApp({
     corsOrigins: ["http://localhost:3000"],
     logger: createLogger({ service: "api", sink: () => {} }),
+  });
+
+  it("classifies idempotency conflicts separately from provider failures", () => {
+    expect(
+      agentStreamFailure(
+        Object.assign(new Error("changed"), { name: "ObjectConflictError" }),
+        "ollama",
+        "request-1",
+      ),
+    ).toEqual({
+      code: "IDEMPOTENCY_CONFLICT",
+      message: "같은 요청 키가 이미 다른 질문에 사용되었습니다.",
+      provider: "ollama",
+      requestId: "request-1",
+      type: "error",
+    });
+    expect(
+      agentStreamFailure(new Error("offline"), "ollama", "request-2"),
+    ).toMatchObject({
+      code: "MODEL_REQUEST_FAILED",
+      message: "Ollama model request failed",
+    });
   });
 
   it("reports process liveness without checking dependencies", async () => {

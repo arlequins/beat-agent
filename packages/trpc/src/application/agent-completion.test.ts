@@ -12,6 +12,12 @@ function createServices(input?: {
   assistantMessage?: { content: string; id: string; role: string } | null;
   chunks?: string[];
   citations?: Citation[];
+  history?: Array<{
+    content: string;
+    id: string;
+    metadata?: { idempotencyKey?: string };
+    role: string;
+  }>;
   model?: boolean;
 }) {
   const citations = input?.citations ?? [
@@ -50,10 +56,12 @@ function createServices(input?: {
       }),
       addMessage,
       addMessageCitations,
-      listMessages: vi.fn().mockResolvedValue([
-        { content: "이전 질문", id: "previous", role: "user" },
-        { content: "질문", id: "message-user", role: "user" },
-      ]),
+      listMessages: vi.fn().mockResolvedValue(
+        input?.history ?? [
+          { content: "이전 질문", id: "previous", role: "user" },
+          { content: "질문", id: "message-user", role: "user" },
+        ],
+      ),
       releaseJob,
     },
     knowledgeSearch: {
@@ -79,18 +87,91 @@ function createServices(input?: {
 
 async function collect(
   services: TRPCServices,
+  options: {
+    idempotencyKey?: string;
+    includeStatus?: boolean;
+    requestId?: string;
+  } = {},
 ): Promise<AgentCompletionEvent[]> {
   const events: AgentCompletionEvent[] = [];
   for await (const event of streamAgentCompletion(services, "user-1", {
     conversationId: "conversation-1",
+    ...(options.idempotencyKey
+      ? { idempotencyKey: options.idempotencyKey }
+      : {}),
     question: "질문",
+    ...(options.requestId ? { requestId: options.requestId } : {}),
     workspaceId: "workspace-1",
-  }))
+  })) {
+    if (!options.includeStatus && event.type === "status") continue;
     events.push(event);
+  }
   return events;
 }
 
 describe("streamAgentCompletion", () => {
+  it("emits lifecycle status events so clients can explain slow work", async () => {
+    const { services } = createServices();
+    await expect(
+      collect(services, { includeStatus: true, requestId: "request-42" }),
+    ).resolves.toEqual([
+      {
+        estimatedCompletionAt: "2026-07-30T00:02:00.000Z",
+        phase: "started",
+        requestId: "request-42",
+        type: "status",
+      },
+      { phase: "retrieving", requestId: "request-42", type: "status" },
+      { phase: "generating", requestId: "request-42", type: "status" },
+      { text: "답", type: "delta" },
+      { text: "변", type: "delta" },
+      { phase: "persisting", requestId: "request-42", type: "status" },
+      {
+        message: {
+          content: "답변",
+          id: "message-assistant",
+          role: "assistant",
+        },
+        type: "complete",
+      },
+    ]);
+  });
+
+  it("returns the persisted answer when a client retries a completed request", async () => {
+    const { addMessage, services, streamText } = createServices({
+      assistantMessage: {
+        content: "새 답변을 만들면 안 됩니다.",
+        id: "message-existing-assistant",
+        role: "assistant",
+      },
+      history: [
+        { content: "질문", id: "message-user", role: "user" },
+        {
+          content: "이미 저장된 답변",
+          id: "message-existing-assistant",
+          metadata: { idempotencyKey: "chat-retry-20260822" },
+          role: "assistant",
+        },
+      ],
+    });
+
+    await expect(
+      collect(services, { idempotencyKey: "chat-retry-20260822" }),
+    ).resolves.toEqual([
+      {
+        message: {
+          content: "이미 저장된 답변",
+          id: "message-existing-assistant",
+          metadata: { idempotencyKey: "chat-retry-20260822" },
+          role: "assistant",
+        },
+        type: "complete",
+      },
+    ]);
+    expect(streamText).not.toHaveBeenCalled();
+    expect(addMessage).toHaveBeenCalledOnce();
+  });
+
   it("collapses only adjacent identical answer blocks", () => {
     expect(collapseRepeatedParagraphs("첫 문단\n\n첫 문단\n\n둘째 문단")).toBe(
       "첫 문단\n\n둘째 문단",

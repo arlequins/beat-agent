@@ -26,4 +26,11 @@ describe("streamErrorMessage", () => {
       "알 수 없는 오류",
     );
   });
+
+  it("explains idempotency key conflicts without blaming the model", () => {
+    const error = Object.assign(new Error("conflict"), {
+      code: "IDEMPOTENCY_CONFLICT",
+    });
+    expect(streamErrorMessage(error)).toContain("이미 저장되어 있습니다");
+  });
 });

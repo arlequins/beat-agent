@@ -1,4 +1,5 @@
 type StreamFailure = Error & {
+  code?: string;
   provider?: "bedrock" | "ollama" | "test" | "none";
   requestId?: string;
 };
@@ -13,6 +14,9 @@ export function streamErrorMessage(error: unknown): string {
   const failure =
     error instanceof Error ? (error as StreamFailure) : ({} as StreamFailure);
   const provider = failure.provider;
+  if (failure.code === "IDEMPOTENCY_CONFLICT") {
+    return "같은 요청이 이미 저장되어 있습니다. 새 질문으로 다시 시도하세요.";
+  }
   if (provider === "bedrock" || message === "Bedrock model request failed") {
     return `Bedrock 모델 요청에 실패했습니다. 잠시 후 다시 시도하세요.${requestIdHint(failure)}`;
   }
