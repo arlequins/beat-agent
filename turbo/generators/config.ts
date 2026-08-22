@@ -63,7 +63,9 @@ function scaffoldActions(kind: "apps" | "packages") {
 function addDomainToContract(domain: string) {
   const path = "packages/trpc/src/contract.test.ts";
   const source = readFileSync(path, "utf8");
-  const match = source.match(/expect\.arrayContaining\((\[[^\]]+\])\)/);
+  const match =
+    source.match(/expect\(names\)\.toEqual\((\[[\s\S]*?\])\)/) ??
+    source.match(/expect\.arrayContaining\((\[[^\]]+\])\)/);
   if (!match?.[1]) throw new Error("Unable to update the tRPC contract test");
   const routers = [...match[1].matchAll(/"([^"]+)"/g)].flatMap((entry) =>
     entry[1] ? [entry[1]] : [],
@@ -205,6 +207,36 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         execFileSync("pnpm", ["check:fix"], { stdio: "inherit" });
         execFileSync("pnpm", ["architecture:check"], { stdio: "inherit" });
         return "Feature slice scaffolded, registered, and checked";
+      },
+    ],
+  });
+
+  plop.setGenerator("slice", {
+    description: "Generate a web Feature-Sliced Design layer",
+    prompts: [
+      namePrompt,
+      {
+        type: "list",
+        name: "layer",
+        message: "Web layer",
+        choices: ["entities", "features", "widgets"],
+        default: "features",
+      },
+    ],
+    actions: [
+      {
+        type: "add",
+        path: "apps/web/src/{{ layer }}/{{ name }}/index.ts",
+        templateFile: "templates/slice/index.ts.hbs",
+      },
+      {
+        type: "add",
+        path: "apps/web/src/{{ layer }}/{{ name }}/README.md",
+        templateFile: "templates/slice/README.md.hbs",
+      },
+      () => {
+        execFileSync("pnpm", ["architecture:check"], { stdio: "inherit" });
+        return "Web slice scaffolded and architecture checked";
       },
     ],
   });

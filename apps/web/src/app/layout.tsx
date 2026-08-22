@@ -3,9 +3,9 @@ import { Toaster } from "@arlequins/ui/toast";
 import type { Metadata, Viewport } from "next";
 
 import { OidcAuthProvider } from "~/auth/provider";
-import { PwaRegistration } from "~/components/pwa-registration";
 import { siteConfig } from "~/config/site";
 import { sitePath } from "~/lib/site-path";
+import { PwaRegistration } from "~/shared/lib/pwa-registration";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/app/styles.css";

@@ -8,9 +8,9 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "~/auth/provider";
 import { env } from "~/env";
+import { streamErrorMessage } from "~/features/chat/model/stream-error";
+import { MarkdownMessage } from "~/shared/ui/markdown-message";
 import { useTRPC } from "~/trpc/react";
-import { streamErrorMessage } from "./agent-chat-error";
-import { MarkdownMessage } from "./markdown-message";
 
 function messageError(error: unknown): string {
   return error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";

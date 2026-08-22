@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useAuth } from "~/auth/provider";
 import { AuthStatus } from "~/auth/status";
-import { AgentChat } from "~/components/agent-chat";
-import { PwaInstall } from "~/components/pwa-install";
+import { PwaInstall } from "~/shared/ui/pwa-install";
+import { AgentChat } from "~/widgets/agent-chat";
 
 export default function HomePage() {
   const { user } = useAuth();
