@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.13.0](https://github.com/arlequins/beat-agent/compare/v0.12.4...v0.13.0) (2026-08-22)
+
+
+### Features
+
+* **chat:** make streamed requests retry-safe ([#73](https://github.com/arlequins/beat-agent/issues/73)) ([1a50a0a](https://github.com/arlequins/beat-agent/commit/1a50a0ad19a612175506447d0ad90aa4f6747b7c))
+
 ## [0.12.4](https://github.com/arlequins/beat-agent/compare/v0.12.3...v0.12.4) (2026-08-22)
 
 
