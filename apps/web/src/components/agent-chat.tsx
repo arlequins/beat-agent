@@ -8,6 +8,10 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "~/auth/provider";
 import { env } from "~/env";
+import {
+  parseAgentStreamLine,
+  splitAgentStreamChunk,
+} from "~/features/chat/model/agent-stream";
 import { streamErrorMessage } from "~/features/chat/model/stream-error";
 import { MarkdownMessage } from "~/shared/ui/markdown-message";
 import { useTRPC } from "~/trpc/react";
@@ -550,18 +554,11 @@ export function AgentChat() {
         const { done, value } = await reader.read();
         if (done) break;
         buffered += decoder.decode(value, { stream: true });
-        const lines = buffered.split("\n");
-        buffered = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line) continue;
-          const value = JSON.parse(line) as {
-            code?: string;
-            message?: string;
-            provider?: "bedrock" | "ollama" | "test" | "none";
-            requestId?: string;
-            text?: string;
-            type: "complete" | "delta" | "error";
-          };
+        const chunk = splitAgentStreamChunk(buffered);
+        buffered = chunk.remainder;
+        for (const line of chunk.lines) {
+          const value = parseAgentStreamLine(line);
+          if (!value) continue;
           if (value.type === "delta") {
             setStreamedText((text) => text + (value.text ?? ""));
           }
@@ -575,6 +572,20 @@ export function AgentChat() {
             throw failure;
           }
         }
+      }
+      buffered += decoder.decode();
+      const finalEvent = parseAgentStreamLine(buffered);
+      if (finalEvent?.type === "delta") {
+        setStreamedText((text) => text + (finalEvent.text ?? ""));
+      }
+      if (finalEvent?.type === "error") {
+        const failure = new Error(finalEvent.message);
+        Object.assign(failure, {
+          code: finalEvent.code,
+          provider: finalEvent.provider,
+          requestId: finalEvent.requestId,
+        });
+        throw failure;
       }
       setQuestion("");
       setStreamedText("");
