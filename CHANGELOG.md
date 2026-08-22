@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.1](https://github.com/arlequins/beat-agent/compare/v0.12.0...v0.12.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* scope weekly evaluation rule ([#64](https://github.com/arlequins/beat-agent/issues/64)) ([e6a48dd](https://github.com/arlequins/beat-agent/commit/e6a48dd19fcef9578a1ba7a4e6c1f50b708ea738))
+
 ## [0.12.0](https://github.com/arlequins/beat-agent/compare/v0.11.2...v0.12.0) (2026-08-22)
 
 
