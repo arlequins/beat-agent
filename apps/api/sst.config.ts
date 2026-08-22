@@ -290,6 +290,10 @@ export default $config({
     const alarmActions = serverEnv.ALERT_TOPIC_ARN
       ? [serverEnv.ALERT_TOPIC_ARN]
       : [];
+    const alarmTags = {
+      Application: "beat-agent",
+      Stage: $app.stage,
+    };
     const metric = (name: string) => ({
       namespace: "Beat/Api",
       metricName: name,
@@ -305,6 +309,7 @@ export default $config({
         threshold: 1,
         comparisonOperator: "GreaterThanOrEqualToThreshold",
         alarmActions,
+        tags: alarmTags,
       });
       new aws.cloudwatch.MetricAlarm("ApiLatency", {
         ...metric("RequestDuration"),
@@ -314,6 +319,7 @@ export default $config({
         threshold: 2_000,
         comparisonOperator: "GreaterThanThreshold",
         alarmActions,
+        tags: alarmTags,
       });
     }
     new aws.cloudwatch.MetricAlarm("AgentJobsDeadLetterMessages", {
@@ -327,6 +333,7 @@ export default $config({
       period: 60,
       statistic: "Maximum",
       threshold: 1,
+      tags: alarmTags,
       treatMissingData: "notBreaching",
     });
     new aws.cloudwatch.MetricAlarm("DailyModelTokenBudget", {
@@ -339,6 +346,7 @@ export default $config({
       threshold: Math.ceil(
         (serverEnv.AGENT_MAX_MONTHLY_MODEL_TOKENS ?? 1_000_000) / 30,
       ),
+      tags: alarmTags,
       treatMissingData: "notBreaching",
     });
     new aws.cloudwatch.Dashboard("ApiDashboard", {
