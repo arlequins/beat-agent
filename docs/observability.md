@@ -24,6 +24,13 @@ The API starts instrumentation before importing Hono, database, and router
 modules. Application spans use `Telemetry.trace`; request counters and duration
 histograms are emitted through both OpenTelemetry and CloudWatch EMF.
 
+Every HTTP request receives or preserves an `X-Request-Id`. The chat NDJSON
+response echoes it in the header and in lifecycle/error events. Chat lifecycle
+phases are `started`, `retrieving`, `generating`, and `persisting`; a busy lease
+returns its expected completion time without starting a second model call.
+Provider failures and idempotency conflicts use separate error codes so an
+operator can distinguish model capacity problems from a client retry bug.
+
 ## Local collector
 
 Any OTLP/HTTP-compatible collector listening on port `4318` can be used locally:

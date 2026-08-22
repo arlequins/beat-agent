@@ -1,10 +1,12 @@
 export type AgentStreamEvent = {
   code?: string;
+  estimatedCompletionAt?: string;
   message?: string;
+  phase?: "generating" | "persisting" | "retrieving" | "started";
   provider?: "bedrock" | "ollama" | "test" | "none";
   requestId?: string;
   text?: string;
-  type: "complete" | "delta" | "error";
+  type: "complete" | "delta" | "error" | "status";
 };
 
 /** Parse one NDJSON line emitted by the agent stream. */

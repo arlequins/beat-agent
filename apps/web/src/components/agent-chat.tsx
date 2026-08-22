@@ -115,6 +115,9 @@ export function AgentChat() {
   const [memberUserId, setMemberUserId] = useState("");
   const [question, setQuestion] = useState("");
   const [streamedText, setStreamedText] = useState("");
+  const [streamPhase, setStreamPhase] = useState<
+    "generating" | "persisting" | "retrieving" | "started" | undefined
+  >();
   const [streamError, setStreamError] = useState<string>();
   const [feedbackNotice, setFeedbackNotice] = useState<string>();
   const [isStreaming, setIsStreaming] = useState(false);
@@ -524,7 +527,9 @@ export function AgentChat() {
     if (!workspaceId || !conversationId || !question.trim()) return;
     setIsStreaming(true);
     setStreamedText("");
+    setStreamPhase("started");
     setStreamError(undefined);
+    const idempotencyKey = crypto.randomUUID();
     try {
       const response = await fetch(
         `${env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/agent/stream`,
@@ -536,7 +541,12 @@ export function AgentChat() {
               : {}),
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ conversationId, question, workspaceId }),
+          body: JSON.stringify({
+            conversationId,
+            idempotencyKey,
+            question,
+            workspaceId,
+          }),
         },
       );
       if (!response.ok || !response.body) {
@@ -562,6 +572,7 @@ export function AgentChat() {
           if (value.type === "delta") {
             setStreamedText((text) => text + (value.text ?? ""));
           }
+          if (value.type === "status") setStreamPhase(value.phase);
           if (value.type === "error") {
             const failure = new Error(value.message);
             Object.assign(failure, {
@@ -578,6 +589,7 @@ export function AgentChat() {
       if (finalEvent?.type === "delta") {
         setStreamedText((text) => text + (finalEvent.text ?? ""));
       }
+      if (finalEvent?.type === "status") setStreamPhase(finalEvent.phase);
       if (finalEvent?.type === "error") {
         const failure = new Error(finalEvent.message);
         Object.assign(failure, {
@@ -589,6 +601,7 @@ export function AgentChat() {
       }
       setQuestion("");
       setStreamedText("");
+      setStreamPhase(undefined);
       setIsStreaming(false);
       await queryClient.invalidateQueries({
         queryKey: trpc.agent.messages.queryKey({ conversationId, workspaceId }),
@@ -598,6 +611,7 @@ export function AgentChat() {
     } finally {
       setIsStreaming(false);
       setStreamedText("");
+      setStreamPhase(undefined);
     }
   }
 
@@ -1117,6 +1131,15 @@ export function AgentChat() {
                   B
                 </div>
                 <div className="max-w-[calc(100%-2.5rem)]">
+                  <p className="text-muted-foreground mb-2 text-xs">
+                    {streamPhase === "started" && "요청을 준비하고 있습니다…"}
+                    {streamPhase === "retrieving" &&
+                      "기억과 문서를 확인하고 있습니다…"}
+                    {streamPhase === "generating" &&
+                      "답변을 작성하고 있습니다…"}
+                    {streamPhase === "persisting" &&
+                      "답변을 안전하게 저장하고 있습니다…"}
+                  </p>
                   <MarkdownMessage content={streamedText || "생성 중…"} />
                 </div>
               </article>

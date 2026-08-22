@@ -11,14 +11,28 @@ import { assertWorkspaceQuota } from "./workspace-quota";
 
 export type AgentCompletionInput = {
   conversationId: string;
+  idempotencyKey?: string;
   question: string;
+  requestId?: string;
   workspaceId: string;
 };
+
+export type AgentCompletionPhase =
+  | "generating"
+  | "persisting"
+  | "retrieving"
+  | "started";
 
 export type AgentCompletionEvent =
   | { text: string; type: "delta" }
   | { call: ToolCall; type: "tool-call" }
   | { type: "usage"; usage: ModelUsage }
+  | {
+      estimatedCompletionAt?: string;
+      phase: AgentCompletionPhase;
+      requestId?: string;
+      type: "status";
+    }
   | {
       message: NonNullable<
         Awaited<ReturnType<TRPCServices["agent"]["addMessage"]>>
@@ -99,18 +113,36 @@ export async function* streamAgentCompletion(
   const actor = { userId, workspaceId: input.workspaceId };
   const startedAt = Date.now();
   try {
+    yield {
+      estimatedCompletionAt: lease.estimatedCompletionAt,
+      phase: "started",
+      ...(input.requestId ? { requestId: input.requestId } : {}),
+      type: "status",
+    };
     const knowledgeReleaseId =
       (await services.agent.activeRelease(input.workspaceId))?.releaseId ??
       "live";
     await services.agent.addMessage(actor, {
       content: input.question,
       conversationId: input.conversationId,
+      ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       role: "user",
     });
     const history = await services.agent.listMessages(
       actor,
       input.conversationId,
     );
+    const existingAssistant = input.idempotencyKey
+      ? history.find(
+          (message) =>
+            message.role === "assistant" &&
+            message.metadata?.idempotencyKey === input.idempotencyKey,
+        )
+      : undefined;
+    if (existingAssistant) {
+      yield { message: existingAssistant, type: "complete" };
+      return;
+    }
     const runtime = createAgentRuntime({
       knowledgeSearch: services.knowledgeSearch,
       memorySearch: services.memorySearch,
@@ -122,6 +154,11 @@ export async function* streamAgentCompletion(
     let citations: Citation[] = [];
     let usage: ModelUsage | undefined;
     let retrievalDegraded = false;
+    yield {
+      phase: "retrieving",
+      ...(input.requestId ? { requestId: input.requestId } : {}),
+      type: "status",
+    };
     for await (const event of runtime.run({
       history: history.slice(0, -1).map((message) => ({
         content: message.content,
@@ -137,11 +174,17 @@ export async function* streamAgentCompletion(
       question: input.question,
       userId,
       knowledgeReleaseId,
-      requestId: lease.jobId,
+      requestId: input.requestId ?? lease.jobId,
       workspaceId: input.workspaceId,
     })) {
       if (event.type === "retrieval-complete" || event.type === "complete") {
         citations = event.citations;
+        if (event.type === "retrieval-complete")
+          yield {
+            phase: "generating",
+            ...(input.requestId ? { requestId: input.requestId } : {}),
+            type: "status",
+          };
         continue;
       }
       if (event.type === "retrieval-degraded") {
@@ -170,6 +213,11 @@ export async function* streamAgentCompletion(
     }
     const content = collapseRepeatedParagraphs(text.join(""));
     if (!content) throw new Error("Model returned no text");
+    yield {
+      phase: "persisting",
+      ...(input.requestId ? { requestId: input.requestId } : {}),
+      type: "status",
+    };
     const message = await services.agent.addMessage(actor, {
       content,
       conversationId: input.conversationId,
@@ -177,6 +225,9 @@ export async function* streamAgentCompletion(
         knowledgeReleaseId,
         latencyMs: Date.now() - startedAt,
         promptVersion: "beat-assistant-v3",
+        ...(input.idempotencyKey
+          ? { idempotencyKey: input.idempotencyKey }
+          : {}),
         ...(retrievalDegraded ? { retrievalDegraded: true } : {}),
         ...(usage ? { usage } : {}),
       },

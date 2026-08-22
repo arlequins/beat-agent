@@ -40,6 +40,13 @@ export const createConversationInputSchema = workspaceScopeInputSchema.extend({
 export const addMessageInputSchema = workspaceScopeInputSchema.extend({
   conversationId: z.uuid(),
   content: z.string().trim().min(1).max(100_000),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(16)
+    .max(128)
+    .regex(/^[A-Za-z0-9._:-]+$/u)
+    .optional(),
   model: z.string().trim().max(128).optional(),
   role: z.enum(["assistant", "system", "user"]),
 });
@@ -71,6 +78,14 @@ export const submitFeedbackInputSchema = workspaceScopeInputSchema.extend({
 export const completeAgentInputSchema = workspaceScopeInputSchema.extend({
   conversationId: z.uuid(),
   question: z.string().trim().min(1).max(100_000),
+  /** A client-generated key that lets retries reuse the same user message. */
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(16)
+    .max(128)
+    .regex(/^[A-Za-z0-9._:-]+$/u)
+    .optional(),
 });
 export const conversationScopeInputSchema = workspaceScopeInputSchema.extend({
   conversationId: z.uuid(),

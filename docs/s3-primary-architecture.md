@@ -23,6 +23,7 @@ workspaces/{workspaceId}/events/{epochMillis}-{eventId}.json
 workspaces/{workspaceId}/state/members/{userId}.json
 workspaces/{workspaceId}/state/conversations/{conversationId}.json
 workspaces/{workspaceId}/state/messages/{conversationId}/{messageId}.json
+workspaces/{workspaceId}/state/idempotency/messages/{requestHash}.json
 workspaces/{workspaceId}/state/documents/{documentId}.json
 workspaces/{workspaceId}/state/chunks/{documentId}/{chunkId}.json
 workspaces/{workspaceId}/state/citations/{messageId}/{ordinal}-{chunkId}.json
@@ -44,6 +45,11 @@ workspaces/{workspaceId}/heads/active-release.json
 - 기존 읽기 모델과 head는 마지막 ETag를 사용한 `If-Match`로만 교체한다.
 - 충돌하면 최신 객체를 다시 읽고 최대 5회 재시도한다.
 - 이벤트는 UUID가 포함된 새 키에 한 번만 기록한다.
+- 채팅 요청은 클라이언트가 보낸 idempotency key를 사용자·workspace 범위의
+  예약 객체로 먼저 점유한다. 같은 키의 재시도는 기존 사용자 메시지와 답변을
+  재사용하고, 다른 내용으로 키를 재사용하면 충돌로 거부한다.
+- 멱등 메시지의 감사 이벤트는 결정적 key로 기록해 동시 재시도에서도 한 번만
+  남는다.
 - 물리 삭제 대신 `deletedAt` tombstone을 기록한다.
 - 런타임 역할에는 `DeleteObjectVersion`을 허용하지 않는다.
 
@@ -60,6 +66,8 @@ S3는 여러 객체를 묶는 트랜잭션을 제공하지 않는다. 현재 구
 - 응답에는 `estimatedCompletionAt`이 포함된다.
 - lease에는 만료 시간이 있어 Lambda 중단 후에도 자동 복구된다.
 - 정상·오류 종료 모두 `finally`에서 idle 상태로 교체한다.
+- 스트림은 `started -> retrieving -> generating -> persisting` 상태 이벤트를
+  보내므로 웹·모바일 클라이언트가 현재 처리 단계와 대기 상태를 표시할 수 있다.
 
 채팅은 낮은 지연시간을 위해 Lambda 응답 스트림에서 직접 처리한다. 문서 색인,
 조사와 주기적 평가처럼 긴 작업은 사용자 ID를 message group으로 사용하는 SQS

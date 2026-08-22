@@ -25,4 +25,16 @@ describe("agent stream parser", () => {
       type: "complete",
     });
   });
+
+  it("parses lifecycle status events", () => {
+    expect(
+      parseAgentStreamLine(
+        '{"type":"status","phase":"retrieving","estimatedCompletionAt":"2026-08-22T00:00:00.000Z"}',
+      ),
+    ).toEqual({
+      estimatedCompletionAt: "2026-08-22T00:00:00.000Z",
+      phase: "retrieving",
+      type: "status",
+    });
+  });
 });
