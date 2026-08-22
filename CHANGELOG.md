@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.0](https://github.com/arlequins/beat-agent/compare/v0.11.2...v0.12.0) (2026-08-22)
+
+
+### Features
+
+* **agent:** add durable asynchronous operations ([#62](https://github.com/arlequins/beat-agent/issues/62)) ([c961a34](https://github.com/arlequins/beat-agent/commit/c961a34004e9b3b45416c33b3f3d2863384b664f))
+
 ## [0.11.2](https://github.com/arlequins/beat-agent/compare/v0.11.1...v0.11.2) (2026-08-18)
 
 
