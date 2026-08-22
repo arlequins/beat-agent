@@ -304,7 +304,7 @@ export default $config({
     if (alarmActions.length > 0) {
       new aws.cloudwatch.MetricAlarm("ApiServerErrors", {
         ...metric("ServerErrorCount"),
-        alarmName: `${$app.name}-${$app.stage}-server-errors`,
+        name: `${$app.name}-${$app.stage}-server-errors`,
         evaluationPeriods: 1,
         threshold: 1,
         comparisonOperator: "GreaterThanOrEqualToThreshold",
@@ -313,7 +313,7 @@ export default $config({
       });
       new aws.cloudwatch.MetricAlarm("ApiLatency", {
         ...metric("RequestDuration"),
-        alarmName: `${$app.name}-${$app.stage}-latency`,
+        name: `${$app.name}-${$app.stage}-latency`,
         statistic: "Average",
         evaluationPeriods: 2,
         threshold: 2_000,
@@ -324,7 +324,7 @@ export default $config({
     }
     new aws.cloudwatch.MetricAlarm("AgentJobsDeadLetterMessages", {
       alarmActions,
-      alarmName: `${$app.name}-${$app.stage}-jobs-dlq`,
+      name: `${$app.name}-${$app.stage}-jobs-dlq`,
       comparisonOperator: "GreaterThanOrEqualToThreshold",
       dimensions: { QueueName: deadLetterQueue.name },
       evaluationPeriods: 1,
@@ -339,7 +339,7 @@ export default $config({
     new aws.cloudwatch.MetricAlarm("DailyModelTokenBudget", {
       ...metric("ModelTokenCount"),
       alarmActions,
-      alarmName: `${$app.name}-${$app.stage}-daily-model-tokens`,
+      name: `${$app.name}-${$app.stage}-daily-model-tokens`,
       comparisonOperator: "GreaterThanOrEqualToThreshold",
       evaluationPeriods: 1,
       period: 86_400,
