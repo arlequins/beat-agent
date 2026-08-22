@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.3](https://github.com/arlequins/beat-agent/compare/v0.12.2...v0.12.3) (2026-08-22)
+
+
+### Bug Fixes
+
+* **api:** pin CloudWatch alarm names ([#68](https://github.com/arlequins/beat-agent/issues/68)) ([dbfd89e](https://github.com/arlequins/beat-agent/commit/dbfd89e310612f129d54a0445781b832257259c5))
+
 ## [0.12.2](https://github.com/arlequins/beat-agent/compare/v0.12.1...v0.12.2) (2026-08-22)
 
 
