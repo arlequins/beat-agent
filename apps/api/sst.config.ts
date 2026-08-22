@@ -273,6 +273,7 @@ export default $config({
       "WeeklyEvaluationSchedule",
       {
         description: "Queue reviewed retrieval evaluations once per week",
+        name: `${$app.name}-${$app.stage}-weekly-evaluation`,
         scheduleExpression: "rate(7 days)",
       },
     );
