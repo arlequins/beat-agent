@@ -186,6 +186,9 @@ async function handleMcpRequest(
       knowledgeSearch: trpcContext.services.knowledgeSearch,
       memorySearch: trpcContext.services.memorySearch,
       repository: trpcContext.services.agent,
+      ...(trpcContext.services.gourmet
+        ? { gourmet: trpcContext.services.gourmet }
+        : {}),
     },
   });
   // The SDK handler is intentionally created per request in stateless mode.

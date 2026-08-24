@@ -22,6 +22,23 @@ import { z } from "zod";
 
 export type McpActor = { userId: string; workspaceId: string };
 
+export type GourmetDraftSummary = {
+  id: string;
+  imageCount: number;
+  menuName: string;
+  rating: number;
+  restaurantName: string;
+  revisit: "yes" | "no" | "unknown";
+  slug: string;
+  status: "draft";
+  updatedAt: string;
+  visitedAt: string | null;
+};
+
+export type McpGourmetPort = {
+  listDrafts(actor: McpActor, limit: number): Promise<GourmetDraftSummary[]>;
+};
+
 export type McpRepositoryPort = {
   activeRelease(
     workspaceId: string,
@@ -61,6 +78,20 @@ export type McpRequestContext = {
   workspaceId: string;
 };
 
+const MAX_RESULTS = 20;
+const gourmetDraftsListDefinition: ToolDefinition = {
+  description:
+    "List the authenticated user's Beat Gourmet draft meal records. This read-only tool returns names, ratings, status, dates, and image counts only; it never returns image bytes or credentials.",
+  inputSchema: {
+    additionalProperties: false,
+    properties: {
+      limit: { maximum: MAX_RESULTS, minimum: 1, type: "integer" },
+    },
+    type: "object",
+  },
+  name: "gourmet.drafts.list",
+};
+
 export type McpToolResponse = {
   content: Array<{ text: string; type: "text" }>;
   isError?: boolean;
@@ -81,7 +112,6 @@ type JsonRpcResponse = {
   result?: unknown;
 };
 
-const MAX_RESULTS = 20;
 const toolDefinitions: ToolDefinition[] = [
   {
     description:
@@ -169,6 +199,9 @@ const sdkToolSchemas = {
     query: z.string().min(1).max(512),
   }),
   "document.list": z.object({}),
+  "gourmet.drafts.list": z.object({
+    limit: z.number().int().min(1).max(MAX_RESULTS).optional(),
+  }),
   "feedback.submit": z.object({
     comment: z.string().max(10_000).optional(),
     kind: z.enum(["helpful", "incorrect", "missing", "needs-investigation"]),
@@ -226,12 +259,16 @@ function toMcpResponse(result: ToolResult): McpToolResponse {
 
 export function createBeatMcpServer(input: {
   authorization: McpAuthorizationPort;
+  gourmet?: McpGourmetPort;
   knowledgeSearch: KnowledgeSearchPort;
   memorySearch: MemorySearchPort;
   repository: McpRepositoryPort;
 }) {
+  const definitions = input.gourmet
+    ? [...toolDefinitions, gourmetDraftsListDefinition]
+    : toolDefinitions;
   const definitionByName = new Map(
-    toolDefinitions.map((definition) => [definition.name, definition]),
+    definitions.map((definition) => [definition.name, definition]),
   );
 
   async function actorFor(context: McpRequestContext) {
@@ -347,6 +384,18 @@ export function createBeatMcpServer(input: {
           name,
         };
       }
+      if (name === "gourmet.drafts.list") {
+        if (!input.gourmet)
+          throw new Error("Beat Gourmet integration is not configured");
+        const limit = limitArgument(args);
+        return {
+          ...textResponse({
+            results: await input.gourmet.listDrafts(actor, limit),
+          }),
+          id: callId,
+          name,
+        };
+      }
       if (name === "feedback.submit") {
         const messageId = stringArgument(args, "messageId");
         const kind = stringArgument(args, "kind") as FeedbackKind;
@@ -389,7 +438,7 @@ export function createBeatMcpServer(input: {
       return { ...result, id: call.id, name: call.name };
     },
     list() {
-      return toolDefinitions.map((definition) => ({ ...definition }));
+      return definitions.map((definition) => ({ ...definition }));
     },
   };
 
@@ -462,7 +511,11 @@ export function createBeatMcpServer(input: {
 
 type BeatMcpDependencies = Pick<
   Parameters<typeof createBeatMcpServer>[0],
-  "authorization" | "knowledgeSearch" | "memorySearch" | "repository"
+  | "authorization"
+  | "gourmet"
+  | "knowledgeSearch"
+  | "memorySearch"
+  | "repository"
 >;
 
 /**
@@ -481,7 +534,7 @@ export function createBeatMcpSdkServer(input: {
     { capabilities: { tools: { listChanged: false } } },
   );
 
-  for (const definition of toolDefinitions) {
+  for (const definition of registry.listTools()) {
     const schema =
       sdkToolSchemas[definition.name as keyof typeof sdkToolSchemas];
     server.registerTool(
