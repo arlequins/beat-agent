@@ -4,8 +4,12 @@ import type { Metadata, Viewport } from "next";
 
 import { OidcAuthProvider } from "~/auth/provider";
 import { siteConfig } from "~/config/site";
+import { env } from "~/env";
 import { sitePath } from "~/lib/site-path";
-import { PwaRegistration } from "~/shared/lib/pwa-registration";
+import {
+  PwaRegistration,
+  PwaUpdateNotice,
+} from "~/shared/lib/pwa-registration";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/app/styles.css";
@@ -49,9 +53,31 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+function securityPolicy() {
+  const apiOrigin = new URL(env.NEXT_PUBLIC_API_URL).origin;
+  const oidcOrigin = new URL(env.NEXT_PUBLIC_OIDC_AUTHORITY).origin;
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self' https:",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    `connect-src 'self' ${apiOrigin} ${oidcOrigin}`,
+    "font-src 'self' data:",
+    ...(env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
+  ].join("; ");
+}
+
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
+      <head>
+        <meta content={securityPolicy()} httpEquiv="Content-Security-Policy" />
+        <meta content="no-referrer" name="referrer" />
+      </head>
       <body className="bg-background text-foreground min-h-screen font-sans antialiased">
         <ThemeProvider>
           <OidcAuthProvider>
@@ -59,6 +85,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           </OidcAuthProvider>
           <Toaster />
           <PwaRegistration />
+          <PwaUpdateNotice />
         </ThemeProvider>
       </body>
     </html>

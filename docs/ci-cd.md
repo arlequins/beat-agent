@@ -45,7 +45,7 @@ pull-request stages and `production` for the manual production workflow.
 | Environment secret | Used by |
 | --- | --- |
 | `AWS_DEPLOY_REGION` | SST provider and GitHub OIDC credential configuration for that environment |
-| `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC role for preview deploy/cleanup or production deployment |
+| `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC role for preview deploy/cleanup or production deployment; production must use `agentGithubProductionRoleArn` from `beat-sst-aws` |
 | `AWS_SMOKE_FUNCTION_URL` | Scheduled Function URL smoke test |
 | `AWS_SMOKE_GATEWAY_URL` | Scheduled API Gateway smoke test |
 | `LOAD_TEST_API_URL` | k6 baseline |
@@ -112,19 +112,23 @@ not provision an AWS StaticSite; SST is reserved for the API deployment.
 Production application deployment is intentionally manual and separate from
 Release Please. Review the S3 data policy, active release, OIDC settings, the
 Nova Lite Bedrock contract, and desired traffic-shift policy before triggering
-the production workflow. The API deployment fails closed unless the protected
-`production` Environment variables contain both exact values:
+the production workflow. The `beat-sst-aws` bootstrap supplies the protected
+Agent deployment role; the Agent SST stack supplies the exact Lambda runtime
+Bedrock policy. The API deployment fails closed unless the protected
+`production` Environment variables contain the exact model and embedding values:
 
 ```dotenv
 BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
 BEDROCK_MODEL_ARN=arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-lite-v1:0
+BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
 ```
 
 These are configuration identifiers, not credentials. Keep them as protected
 Environment variables so the API and SST IAM policy cannot drift. The production
-workflow appends them after the protected `DEPLOYMENT_ENV_FILE` is written; it
-does not overwrite that full dotenv secret. The Lambda permission remains limited to
-`bedrock:InvokeModelWithResponseStream` on that single ARN.
+workflow verifies account access with `aws bedrock get-foundation-model`, then
+appends them after the protected `DEPLOYMENT_ENV_FILE` is written; it does not
+overwrite that full dotenv secret. The Lambda permissions remain limited to the
+streaming action on the Nova ARN and the embedding action on the Titan ARN.
 
 ## GitHub Pages production web
 

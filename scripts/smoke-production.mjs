@@ -68,6 +68,9 @@ const homepage = await expectOk(appendPath(web, ""), "GitHub Pages home");
 if (!homepage.response.headers.get("content-type")?.includes("text/html")) {
   throw new Error("GitHub Pages home did not return HTML");
 }
+if (!homepage.body.includes('http-equiv="Content-Security-Policy"')) {
+  throw new Error("GitHub Pages home is missing the CSP meta policy");
+}
 checks.push("pages.home");
 
 const manifest = await expectOk(

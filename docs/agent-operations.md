@@ -35,8 +35,19 @@ document bytes and current UTC-month model tokens; limits never delete data.
 The operations panel shows investigations, approved evaluation cases, queued or
 completed runs, Citation recall, and the active immutable release. Operators create
 an evaluation case from a cited answer, run it, and only activate a snapshot after
-the 0.75 recall gate. EventBridge also queues this evaluation every seven days when
+the 0.75 recall and 0.5 precision gates. EventBridge also queues this evaluation every seven days when
 approved cases exist.
+
+## Bedrock embedding reindex
+
+After the first protected deployment with Titan enabled, reindex existing
+documents through the authenticated operations panel using `startIndex` for
+each document. Wait for every index run to complete before publishing a new
+knowledge release. Do not bypass the API with direct S3 writes: the index run,
+audit event, and release manifest must remain linked. Compare the new semantic
+retrieval results with the held-out evaluation cases, and publish only when the
+recall and precision gates pass. A failed or partial reindex remains an
+operational incident; it is not a reason to activate a mixed release.
 
 For queue incidents, inspect the `*-jobs-dlq` CloudWatch alarm and dashboard. Keep
 the source S3 object version and run record, correct the cause, then redrive the

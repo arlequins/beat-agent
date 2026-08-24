@@ -148,4 +148,45 @@ describe("AWS Bedrock Converse adapter", () => {
       role: "assistant",
     });
   });
+
+  it("rejects tool names that collide after provider normalization", async () => {
+    const send = vi.fn();
+    const port = createAwsBedrockConversePort({ send } as never);
+    const consume = async () => {
+      for await (const _event of port.stream({
+        messages: [{ content: "질문", role: "user" }],
+        modelId: "model",
+        tools: [
+          {
+            description: "First",
+            inputSchema: { type: "object" },
+            name: "document.search",
+          },
+          {
+            description: "Second",
+            inputSchema: { type: "object" },
+            name: "document_search",
+          },
+        ],
+      })) {
+        // The adapter must reject before sending a provider request.
+      }
+    };
+    await expect(consume()).rejects.toThrow("Bedrock tool name collision");
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("fails clearly when Bedrock returns no stream", async () => {
+    const send = vi.fn(async () => ({}));
+    const port = createAwsBedrockConversePort({ send } as never);
+    const consume = async () => {
+      for await (const _event of port.stream({
+        messages: [{ content: "질문", role: "user" }],
+        modelId: "model",
+      })) {
+        // Consume the stream to surface the provider error.
+      }
+    };
+    await expect(consume()).rejects.toThrow("Bedrock returned no stream");
+  });
 });

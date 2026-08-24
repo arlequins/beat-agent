@@ -35,6 +35,7 @@ describe("public tRPC contract", () => {
       "createEvaluationCase",
       "createMemory",
       "createWorkspace",
+      "deleteConversation",
       "deleteDocument",
       "deleteMemory",
       "documents",
@@ -48,12 +49,15 @@ describe("public tRPC contract", () => {
       "messages",
       "publishRelease",
       "purgeExpiredMemories",
+      "renameConversation",
       "requestDocumentUpload",
       "reviewMemory",
       "runEvaluation",
       "startIndex",
       "submitFeedback",
+      "updateWorkspaceProfile",
       "usage",
+      "workspaceProfile",
       "workspaces",
     ]);
   });

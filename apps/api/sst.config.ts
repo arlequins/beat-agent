@@ -206,6 +206,16 @@ export default $config({
               },
             ]
           : []),
+        ...(serverEnv.BEDROCK_EMBEDDING_MODEL_ID
+          ? [
+              {
+                actions: ["bedrock:InvokeModel"],
+                resources: [
+                  `arn:aws:bedrock:${region}::foundation-model/${serverEnv.BEDROCK_EMBEDDING_MODEL_ID}`,
+                ],
+              },
+            ]
+          : []),
       ],
     };
     const worker = new sst.aws.Function("AgentJobsWorker", {
@@ -241,6 +251,16 @@ export default $config({
           ],
           resources: [jobsQueue.arn],
         },
+        ...(serverEnv.BEDROCK_EMBEDDING_MODEL_ID
+          ? [
+              {
+                actions: ["bedrock:InvokeModel"],
+                resources: [
+                  `arn:aws:bedrock:${region}::foundation-model/${serverEnv.BEDROCK_EMBEDDING_MODEL_ID}`,
+                ],
+              },
+            ]
+          : []),
       ],
     });
     new aws.lambda.EventSourceMapping("AgentJobsSubscription", {

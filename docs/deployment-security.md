@@ -13,7 +13,7 @@ Store these values as secrets on the matching GitHub Environment. Role ARNs
 identify resources and are not credentials, but keeping all deployment inputs
 in the same protected Environment prevents accidental cross-environment use:
 
-- environment secret: `AWS_DEPLOY_ROLE_ARN`
+- environment secret: `AWS_DEPLOY_ROLE_ARN` (production: the `agentGithubProductionRoleArn` output from `beat-sst-aws`)
 - environment secret: `AWS_DEPLOY_REGION`
 - environment secret: `DEPLOYMENT_ENV_FILE`
 
@@ -55,7 +55,7 @@ The license policy rejects AGPL and GPL production dependencies by default. Adju
 
 ## Headers and CSP
 
-The Hono API uses `secureHeaders` and strict CORS. For the statically exported web application, configure a CloudFront response-headers policy with HSTS, `X-Content-Type-Options`, `Referrer-Policy`, frame restrictions, and a tested Content Security Policy. Start CSP in report-only mode because OIDC issuer and API origins vary by generated project, then enforce it after collecting violations. Do not hard-code a template-wide production issuer.
+The Hono API uses `secureHeaders` and strict CORS. For the statically exported web application, configure a CloudFront response-headers policy with HSTS, `X-Content-Type-Options`, `Referrer-Policy`, frame restrictions, and a tested Content Security Policy. Beat also emits a build-time CSP meta policy and a `_headers` artifact as fallbacks for compatible hosts; the edge policy remains the authoritative production control. Start CSP in report-only mode because OIDC issuer and API origins vary by generated project, then enforce it after collecting violations. Do not hard-code a template-wide production issuer.
 
 ## Application Request Guards
 

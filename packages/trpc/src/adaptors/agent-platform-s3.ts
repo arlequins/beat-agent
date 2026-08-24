@@ -26,10 +26,21 @@ type Conversation = {
   archivedAt?: string;
   createdAt: string;
   createdByUserId: string;
+  deletedAt?: string;
   id: string;
   summary?: string;
   title: string;
   updatedAt: string;
+  workspaceId: string;
+};
+type WorkspaceProfile = {
+  createdAt: string;
+  honorific: "이름" | "님" | "선택 안 함";
+  preferredName: string;
+  responseStyle: "간결하게" | "차분하게" | "자세하게";
+  timezone: string;
+  updatedAt: string;
+  userId: string;
   workspaceId: string;
 };
 type Message = {
@@ -252,7 +263,16 @@ function publicConversation(value: Conversation) {
     ...value,
     archivedAt: date(value.archivedAt) ?? null,
     createdAt: new Date(value.createdAt),
+    deletedAt: date(value.deletedAt) ?? null,
     summary: value.summary ?? null,
+    updatedAt: new Date(value.updatedAt),
+  };
+}
+
+function publicWorkspaceProfile(value: WorkspaceProfile) {
+  return {
+    ...value,
+    createdAt: new Date(value.createdAt),
     updatedAt: new Date(value.updatedAt),
   };
 }
@@ -418,7 +438,7 @@ export function createS3AgentPlatformRepository(
         "Conversation was not found in this workspace",
       )
     ).value;
-    if (conversation.archivedAt)
+    if (conversation.archivedAt || conversation.deletedAt)
       throw new Error("Conversation is archived and cannot accept messages");
     return conversation;
   }
@@ -611,7 +631,7 @@ export function createS3AgentPlatformRepository(
           collectionPrefix(actor.workspaceId, "conversations"),
         )
       )
-        .filter((item) => !item.archivedAt)
+        .filter((item) => !item.archivedAt && !item.deletedAt)
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
         .map(publicConversation);
     },
@@ -629,6 +649,70 @@ export function createS3AgentPlatformRepository(
       );
       await appendEvent(actor, "conversation.archived", conversationId);
       return publicConversation(value);
+    },
+    async renameConversation(
+      actor: WorkspaceActor,
+      conversationId: string,
+      title: string,
+    ) {
+      await assertMember(actor);
+      const value = await mutate<Conversation>(
+        store,
+        stateKey(actor.workspaceId, "conversations", conversationId),
+        (current) => ({
+          ...current,
+          title: title.trim().slice(0, 256),
+          updatedAt: timestamp(),
+        }),
+      );
+      await appendEvent(actor, "conversation.renamed", conversationId);
+      return publicConversation(value);
+    },
+    async deleteConversation(actor: WorkspaceActor, conversationId: string) {
+      await assertMember(actor);
+      const deletedAt = timestamp();
+      const value = await mutate<Conversation>(
+        store,
+        stateKey(actor.workspaceId, "conversations", conversationId),
+        (current) => ({
+          ...current,
+          archivedAt: deletedAt,
+          deletedAt,
+          updatedAt: deletedAt,
+        }),
+      );
+      await appendEvent(actor, "conversation.deleted", conversationId);
+      return publicConversation(value);
+    },
+    async getWorkspaceProfile(actor: WorkspaceActor) {
+      await assertMember(actor);
+      const value = await store.get<WorkspaceProfile>(
+        stateKey(actor.workspaceId, "profiles", actor.userId),
+      );
+      return value ? publicWorkspaceProfile(value.value) : null;
+    },
+    async updateWorkspaceProfile(
+      actor: WorkspaceActor,
+      input: Omit<
+        WorkspaceProfile,
+        "createdAt" | "updatedAt" | "userId" | "workspaceId"
+      >,
+    ) {
+      await assertMember(actor);
+      const key = stateKey(actor.workspaceId, "profiles", actor.userId);
+      const existing = await store.get<WorkspaceProfile>(key);
+      const updatedAt = timestamp();
+      const profile: WorkspaceProfile = {
+        ...input,
+        createdAt: existing?.value.createdAt ?? updatedAt,
+        updatedAt,
+        userId: actor.userId,
+        workspaceId: actor.workspaceId,
+      };
+      if (existing?.etag) await store.replace(key, profile, existing.etag);
+      else await store.create(key, profile);
+      await appendEvent(actor, "workspace.profile.updated", actor.userId);
+      return publicWorkspaceProfile(profile);
     },
     async addMessage(
       actor: WorkspaceActor,
@@ -776,11 +860,13 @@ export function createS3AgentPlatformRepository(
     },
     async listMessages(actor: WorkspaceActor, conversationId: string) {
       await assertMember(actor);
-      await required(
+      const conversation = await required<Conversation>(
         store,
         stateKey(actor.workspaceId, "conversations", conversationId),
         "Conversation was not found in this workspace",
       );
+      if (conversation.value.deletedAt)
+        throw new Error("Conversation was deleted from this workspace");
       return (
         await values<Message>(
           store,
@@ -1068,6 +1154,16 @@ export function createS3AgentPlatformRepository(
     },
     async listMessageCitations(actor: WorkspaceActor, messageId: string) {
       await assertMember(actor);
+      const message = (
+        await store.list<Message>(
+          collectionPrefix(actor.workspaceId, "messages"),
+        )
+      ).find(({ value }) => value.id === messageId)?.value;
+      if (!message) return [];
+      const conversation = await store.get<Conversation>(
+        stateKey(actor.workspaceId, "conversations", message.conversationId),
+      );
+      if (conversation?.value.deletedAt) return [];
       const records = await values<CitationRecord>(
         store,
         collectionPrefix(actor.workspaceId, `citations/${messageId}`),
@@ -1155,8 +1251,20 @@ export function createS3AgentPlatformRepository(
           ),
           "Conversation was not found in this workspace",
         );
+      const duplicate = (
+        await values<MemoryRecord>(
+          store,
+          collectionPrefix(actor.workspaceId, "memories"),
+        )
+      ).find(
+        (memory) =>
+          !memory.deletedAt &&
+          memory.status !== "rejected" &&
+          memory.content === input.content.trim(),
+      );
+      if (duplicate) return publicMemory(duplicate);
       const memory: MemoryRecord = {
-        content: input.content,
+        content: input.content.trim(),
         createdAt: timestamp(),
         id: randomUUID(),
         importance: input.importance ?? 50,
@@ -1723,10 +1831,14 @@ export function createS3AgentPlatformRepository(
     },
     async publishRelease(
       actor: WorkspaceActor,
-      input: { minimumCitationRecall?: number } = {},
+      input: {
+        minimumCitationPrecision?: number;
+        minimumCitationRecall?: number;
+      } = {},
     ) {
       await assertOwner(actor);
       const minimumCitationRecall = input.minimumCitationRecall ?? 0.75;
+      const minimumCitationPrecision = input.minimumCitationPrecision ?? 0.5;
       const runs = (
         await values<EvaluationRun>(
           store,
@@ -1738,10 +1850,12 @@ export function createS3AgentPlatformRepository(
       const evaluation = runs[0];
       if (
         !evaluation?.summary ||
-        evaluation.summary.averageCitationRecall < minimumCitationRecall
+        evaluation.summary.averageCitationRecall < minimumCitationRecall ||
+        (evaluation.summary.averageCitationPrecision ?? 0) <
+          minimumCitationPrecision
       )
         throw new Error(
-          `A completed evaluation with citation recall >= ${minimumCitationRecall} is required`,
+          `A completed evaluation with citation recall >= ${minimumCitationRecall} and precision >= ${minimumCitationPrecision} is required`,
         );
       const [knowledgeChunks, memories] = await Promise.all([
         liveKnowledgeChunks(actor.workspaceId),
@@ -1763,6 +1877,7 @@ export function createS3AgentPlatformRepository(
       await store.create(manifestKey, {
         createdAt,
         evaluationRunId: evaluation.id,
+        minimumCitationPrecision,
         minimumCitationRecall,
         releaseId,
         schemaVersion: 1,

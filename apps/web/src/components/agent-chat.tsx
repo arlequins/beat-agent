@@ -113,6 +113,15 @@ export function AgentChat() {
   const [documentFilename, setDocumentFilename] = useState("notes.txt");
   const [memoryContent, setMemoryContent] = useState("");
   const [memberUserId, setMemberUserId] = useState("");
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [preferredName, setPreferredName] = useState("");
+  const [honorific, setHonorific] = useState<"이름" | "님" | "선택 안 함">(
+    "님",
+  );
+  const [timezone, setTimezone] = useState("Asia/Tokyo");
+  const [responseStyle, setResponseStyle] = useState<
+    "간결하게" | "차분하게" | "자세하게"
+  >("차분하게");
   const [question, setQuestion] = useState("");
   const [streamedText, setStreamedText] = useState("");
   const [streamPhase, setStreamPhase] = useState<
@@ -155,6 +164,12 @@ export function AgentChat() {
   });
   const memories = useQuery({
     ...trpc.agent.memories.queryOptions({ workspaceId: workspaceId ?? "" }),
+    enabled: Boolean(workspaceId),
+  });
+  const workspaceProfile = useQuery({
+    ...trpc.agent.workspaceProfile.queryOptions({
+      workspaceId: workspaceId ?? "",
+    }),
     enabled: Boolean(workspaceId),
   });
   const usage = useQuery({
@@ -209,6 +224,15 @@ export function AgentChat() {
     if (!workspaceId && workspaces.data?.[0])
       setWorkspaceId(workspaces.data[0].id);
   }, [workspaceId, workspaces.data]);
+
+  useEffect(() => {
+    const profile = workspaceProfile.data;
+    if (!profile) return;
+    setPreferredName((value) => value || profile.preferredName);
+    setHonorific(profile.honorific);
+    setTimezone(profile.timezone);
+    setResponseStyle(profile.responseStyle);
+  }, [workspaceProfile.data]);
 
   useEffect(() => {
     if (!conversationId && conversations.data?.[0]) {
@@ -342,6 +366,52 @@ export function AgentChat() {
         setMemoryContent("");
         await queryClient.invalidateQueries({
           queryKey: trpc.agent.memories.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        });
+      },
+    }),
+  );
+  const updateWorkspaceProfile = useMutation(
+    trpc.agent.updateWorkspaceProfile.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({
+          queryKey: trpc.agent.workspaceProfile.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        });
+      },
+    }),
+  );
+  const renameConversation = useMutation(
+    trpc.agent.renameConversation.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({
+          queryKey: trpc.agent.conversations.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        });
+      },
+    }),
+  );
+  const archiveConversation = useMutation(
+    trpc.agent.archiveConversation.mutationOptions({
+      onSuccess: async () => {
+        setConversationId(undefined);
+        await queryClient.invalidateQueries({
+          queryKey: trpc.agent.conversations.queryKey({
+            workspaceId: workspaceId ?? "",
+          }),
+        });
+      },
+    }),
+  );
+  const deleteConversation = useMutation(
+    trpc.agent.deleteConversation.mutationOptions({
+      onSuccess: async () => {
+        setConversationId(undefined);
+        await queryClient.invalidateQueries({
+          queryKey: trpc.agent.conversations.queryKey({
             workspaceId: workspaceId ?? "",
           }),
         });
@@ -522,6 +592,43 @@ export function AgentChat() {
     });
   }
 
+  function saveWorkspaceProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workspaceId || !preferredName.trim()) return;
+    updateWorkspaceProfile.mutate({
+      honorific,
+      preferredName: preferredName.trim(),
+      responseStyle,
+      timezone: timezone.trim() || "Asia/Tokyo",
+      workspaceId,
+    });
+  }
+
+  function exportConversation() {
+    const conversation = conversations.data?.find(
+      (item) => item.id === conversationId,
+    );
+    if (!conversation || !messages.data?.length) return;
+    const markdown = [
+      `# ${conversation.title}`,
+      "",
+      ...messages.data.flatMap((message) => [
+        `## ${message.role === "user" ? "사용자" : message.role === "assistant" ? "Beat" : "시스템"}`,
+        "",
+        message.content,
+        "",
+      ]),
+    ].join("\n");
+    const url = URL.createObjectURL(
+      new Blob([markdown], { type: "text/markdown" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${conversation.title.replace(/[^\p{L}\p{N}-]+/gu, "-") || "beat-conversation"}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workspaceId || !conversationId || !question.trim()) return;
@@ -664,10 +771,15 @@ export function AgentChat() {
           </span>
         </div>
         <select
+          aria-label="워크스페이스"
           className="mt-4 h-10 w-full rounded-xl border-0 bg-background px-3 text-sm shadow-xs outline-none transition focus:ring-2 focus:ring-ring"
           onChange={(event) => {
             setWorkspaceId(event.target.value);
             setConversationId(undefined);
+            setPreferredName("");
+            setHonorific("님");
+            setTimezone("Asia/Tokyo");
+            setResponseStyle("차분하게");
           }}
           value={workspaceId}
         >
@@ -687,21 +799,137 @@ export function AgentChat() {
         >
           새 대화
         </Button>
+        <Input
+          aria-label="대화 검색"
+          className="mt-3 h-9 rounded-xl bg-background"
+          onChange={(event) => setConversationSearch(event.target.value)}
+          placeholder="대화 검색"
+          value={conversationSearch}
+        />
         <div className="mt-5 space-y-1">
           <p className="text-muted-foreground px-2 pb-2 text-[11px] font-semibold tracking-[0.14em] uppercase">
             대화
           </p>
-          {conversations.data?.map((conversation) => (
+          {conversations.data
+            ?.filter((conversation) =>
+              conversation.title
+                .toLocaleLowerCase()
+                .includes(conversationSearch.trim().toLocaleLowerCase()),
+            )
+            .map((conversation) => (
+              <button
+                className={`w-full truncate rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${conversationId === conversation.id ? "bg-background text-foreground font-medium shadow-xs" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`}
+                key={conversation.id}
+                onClick={() => setConversationId(conversation.id)}
+                type="button"
+              >
+                {conversation.title}
+              </button>
+            ))}
+        </div>
+        {conversationId && workspaceId && (
+          <div className="mt-3 flex flex-wrap gap-2 px-1 text-[11px]">
             <button
-              className={`w-full truncate rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${conversationId === conversation.id ? "bg-background text-foreground font-medium shadow-xs" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`}
-              key={conversation.id}
-              onClick={() => setConversationId(conversation.id)}
+              className="text-muted-foreground hover:underline"
+              onClick={() => {
+                const current = conversations.data?.find(
+                  (conversation) => conversation.id === conversationId,
+                );
+                const title = window.prompt("대화 이름", current?.title ?? "");
+                if (title?.trim())
+                  renameConversation.mutate({
+                    conversationId,
+                    title: title.trim(),
+                    workspaceId,
+                  });
+              }}
               type="button"
             >
-              {conversation.title}
+              이름 변경
             </button>
-          ))}
-        </div>
+            <button
+              className="text-muted-foreground hover:underline"
+              onClick={exportConversation}
+              type="button"
+            >
+              Markdown 내보내기
+            </button>
+            <button
+              className="text-muted-foreground hover:underline"
+              onClick={() =>
+                archiveConversation.mutate({ conversationId, workspaceId })
+              }
+              type="button"
+            >
+              보관
+            </button>
+            <button
+              className="text-destructive hover:underline"
+              onClick={() => {
+                if (window.confirm("이 대화를 삭제할까요?"))
+                  deleteConversation.mutate({ conversationId, workspaceId });
+              }}
+              type="button"
+            >
+              삭제
+            </button>
+          </div>
+        )}
+        <details className="mt-6 border-t pt-4" open={!workspaceProfile.data}>
+          <summary className="text-muted-foreground cursor-pointer text-sm font-medium transition-colors hover:text-foreground">
+            Beat 개인화
+          </summary>
+          <form className="mt-3 space-y-2" onSubmit={saveWorkspaceProfile}>
+            <Input
+              aria-label="선호 이름"
+              onChange={(event) => setPreferredName(event.target.value)}
+              placeholder="어떻게 불러드릴까요?"
+              value={preferredName}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                aria-label="호칭"
+                className="h-9 rounded-lg border bg-background px-2 text-xs"
+                onChange={(event) =>
+                  setHonorific(event.target.value as typeof honorific)
+                }
+                value={honorific}
+              >
+                <option>님</option>
+                <option>이름</option>
+                <option>선택 안 함</option>
+              </select>
+              <select
+                aria-label="답변 스타일"
+                className="h-9 rounded-lg border bg-background px-2 text-xs"
+                onChange={(event) =>
+                  setResponseStyle(event.target.value as typeof responseStyle)
+                }
+                value={responseStyle}
+              >
+                <option>차분하게</option>
+                <option>간결하게</option>
+                <option>자세하게</option>
+              </select>
+            </div>
+            <Input
+              aria-label="시간대"
+              onChange={(event) => setTimezone(event.target.value)}
+              placeholder="시간대 (예: Asia/Tokyo)"
+              value={timezone}
+            />
+            <Button
+              className="w-full"
+              disabled={
+                updateWorkspaceProfile.isPending || !preferredName.trim()
+              }
+              type="submit"
+              variant="outline"
+            >
+              {updateWorkspaceProfile.isPending ? "저장 중…" : "개인화 저장"}
+            </Button>
+          </form>
+        </details>
         <details className="mt-6 border-t pt-4">
           <summary className="text-muted-foreground cursor-pointer text-sm font-medium transition-colors hover:text-foreground">
             로컬 지식 추가
@@ -955,6 +1183,7 @@ export function AgentChat() {
                     disabled={publishRelease.isPending}
                     onClick={() =>
                       publishRelease.mutate({
+                        minimumCitationPrecision: 0.5,
                         minimumCitationRecall: 0.75,
                         workspaceId,
                       })

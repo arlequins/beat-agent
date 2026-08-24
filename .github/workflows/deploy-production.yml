@@ -49,6 +49,13 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_DEPLOY_REGION }}
+      - name: Verify Bedrock model access
+        env:
+          AWS_REGION: ${{ secrets.AWS_DEPLOY_REGION }}
+          BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
+          BEDROCK_MODEL_ARN: ${{ vars.BEDROCK_MODEL_ARN }}
+          BEDROCK_EMBEDDING_MODEL_ID: ${{ vars.BEDROCK_EMBEDDING_MODEL_ID }}
+        run: pnpm bedrock:verify
       - name: Write GitHub Environment values
         env:
           DEPLOYMENT_ENV_FILE: ${{ secrets.DEPLOYMENT_ENV_FILE }}
@@ -57,6 +64,7 @@ jobs:
           NEXT_PUBLIC_OIDC_AUTHORITY: ${{ vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
           BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
           BEDROCK_MODEL_ARN: ${{ vars.BEDROCK_MODEL_ARN }}
+          BEDROCK_EMBEDDING_MODEL_ID: ${{ vars.BEDROCK_EMBEDDING_MODEL_ID }}
         run: |
           if [ -z "$DEPLOYMENT_ENV_FILE" ]; then
             echo "DEPLOYMENT_ENV_FILE must be configured as a GitHub Environment secret." >&2
@@ -64,21 +72,26 @@ jobs:
           fi
           umask 077
           printf '%s\n' "$DEPLOYMENT_ENV_FILE" > .env
-          if [ -n "$API_CORS_ORIGINS" ]; then
-            printf 'API_CORS_ORIGINS=%s\n' "$API_CORS_ORIGINS" >> .env
-          fi
-          if [ -n "$OIDC_ISSUER_URL" ]; then
-            printf 'OIDC_ISSUER_URL=%s\n' "$OIDC_ISSUER_URL" >> .env
-          fi
-          if [ -n "$NEXT_PUBLIC_OIDC_AUTHORITY" ]; then
-            printf 'NEXT_PUBLIC_OIDC_AUTHORITY=%s\n' "$NEXT_PUBLIC_OIDC_AUTHORITY" >> .env
-          fi
-          if [ -z "$BEDROCK_MODEL_ID" ] || [ -z "$BEDROCK_MODEL_ARN" ]; then
-            echo "Production variables BEDROCK_MODEL_ID and BEDROCK_MODEL_ARN must both be configured." >&2
+          {
+            if [ -n "$API_CORS_ORIGINS" ]; then
+              printf 'API_CORS_ORIGINS=%s\n' "$API_CORS_ORIGINS"
+            fi
+            if [ -n "$OIDC_ISSUER_URL" ]; then
+              printf 'OIDC_ISSUER_URL=%s\n' "$OIDC_ISSUER_URL"
+            fi
+            if [ -n "$NEXT_PUBLIC_OIDC_AUTHORITY" ]; then
+              printf 'NEXT_PUBLIC_OIDC_AUTHORITY=%s\n' "$NEXT_PUBLIC_OIDC_AUTHORITY"
+            fi
+          } >> .env
+          if [ -z "$BEDROCK_MODEL_ID" ] || [ -z "$BEDROCK_MODEL_ARN" ] || [ -z "$BEDROCK_EMBEDDING_MODEL_ID" ]; then
+            echo "Production Bedrock model and embedding variables must be configured." >&2
             exit 1
           fi
-          printf 'BEDROCK_MODEL_ID=%s\n' "$BEDROCK_MODEL_ID" >> .env
-          printf 'BEDROCK_MODEL_ARN=%s\n' "$BEDROCK_MODEL_ARN" >> .env
+          {
+            printf 'BEDROCK_MODEL_ID=%s\n' "$BEDROCK_MODEL_ID"
+            printf 'BEDROCK_MODEL_ARN=%s\n' "$BEDROCK_MODEL_ARN"
+            printf 'BEDROCK_EMBEDDING_MODEL_ID=%s\n' "$BEDROCK_EMBEDDING_MODEL_ID"
+          } >> .env
       - name: Build API workspace dependencies
         run: pnpm turbo run build --filter=@arlequins/api...
       - name: Run SST operation

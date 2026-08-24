@@ -13,6 +13,8 @@ jobs:
     timeout-minutes: 10
     env:
       WEB_URL: https://arlequins.github.io/beat-agent/
+      BEAT_SSO_SMOKE_ACCESS_TOKEN: ${{ secrets.BEAT_SSO_SMOKE_ACCESS_TOKEN }}
+      BEAT_SSO_SMOKE_AUTHORITY: ${{ vars.NEXT_PUBLIC_OIDC_AUTHORITY }}
     steps:
       - uses: actions/checkout@v5
         with:
