@@ -771,6 +771,7 @@ export function AgentChat() {
           </span>
         </div>
         <select
+          aria-label="워크스페이스"
           className="mt-4 h-10 w-full rounded-xl border-0 bg-background px-3 text-sm shadow-xs outline-none transition focus:ring-2 focus:ring-ring"
           onChange={(event) => {
             setWorkspaceId(event.target.value);

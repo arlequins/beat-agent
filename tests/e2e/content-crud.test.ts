@@ -30,7 +30,7 @@ test("creates an agent workspace and starts a conversation without horizontal ov
   await signIn(page, `workspace-${suffix}`);
   await page.getByLabel("워크스페이스 이름").fill(workspaceName);
   await page.getByRole("button", { name: "만들기" }).click();
-  await expect(page.locator("select")).toContainText(workspaceName);
+  await expect(page.getByLabel("워크스페이스")).toContainText(workspaceName);
   await page.getByRole("button", { name: "새 대화" }).click();
   await expect(page.getByRole("button", { name: "새 대화" })).toBeVisible();
   await expect(page.getByLabel("질문")).toBeEnabled();
@@ -47,7 +47,7 @@ test("creates an agent workspace and starts a conversation without horizontal ov
   await page
     .getByLabel("기억 내용")
     .fill("사용자는 기본적으로 한국어 답변을 선호한다.");
-  await page.getByRole("button", { name: "저장" }).click();
+  await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(
     page.getByText("사용자는 기본적으로 한국어 답변을 선호한다."),
   ).toBeVisible();
@@ -64,7 +64,7 @@ test("sends a question, renders its citation, and records feedback", async ({
 
   await page.getByLabel("워크스페이스 이름").fill(`Chat ${suffix}`);
   await page.getByRole("button", { name: "만들기" }).click();
-  await expect(page.locator("select")).toContainText(`Chat ${suffix}`);
+  await expect(page.getByLabel("워크스페이스")).toContainText(`Chat ${suffix}`);
   await page.getByRole("button", { name: "새 대화" }).click();
   await expect(page.getByLabel("질문")).toBeEnabled();
 
