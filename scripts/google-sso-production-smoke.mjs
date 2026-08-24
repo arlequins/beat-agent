@@ -11,6 +11,8 @@ if (!webInput) {
 
 const web = new URL(webInput);
 if (web.protocol !== "https:") throw new Error("WEB_URL must use HTTPS");
+const smokeAccessToken = process.env.BEAT_SSO_SMOKE_ACCESS_TOKEN?.trim();
+const smokeAuthority = process.env.BEAT_SSO_SMOKE_AUTHORITY?.trim();
 
 const googleAuthorizationPaths = new Set([
   "/o/oauth2/v2/auth",
@@ -39,9 +41,39 @@ try {
     !google.searchParams.get("redirect_uri")?.endsWith("/auth/google/callback")
   )
     throw new Error("Google redirect URI must end in /auth/google/callback");
+  if (smokeAccessToken) {
+    if (!smokeAuthority)
+      throw new Error(
+        "BEAT_SSO_SMOKE_AUTHORITY is required with an access token",
+      );
+    const authority = new URL(smokeAuthority);
+    if (authority.protocol !== "https:")
+      throw new Error("BEAT_SSO_SMOKE_AUTHORITY must use HTTPS");
+    const sessions = await fetch(
+      `${authority.toString().replace(/\/$/u, "")}/sessions`,
+      {
+        headers: { Authorization: `Bearer ${smokeAccessToken}` },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!sessions.ok)
+      throw new Error(
+        `Authenticated session check failed (${sessions.status})`,
+      );
+    const payload = await sessions.json();
+    if (!Array.isArray(payload.sessions))
+      throw new Error("Authenticated session response is invalid");
+  }
   console.log(
     JSON.stringify(
-      { checks: ["agent.oidc", "beat.google-redirect"], google: google.origin },
+      {
+        checks: [
+          "agent.oidc",
+          "beat.google-redirect",
+          ...(smokeAccessToken ? ["beat.authenticated-sessions"] : []),
+        ],
+        google: google.origin,
+      },
       null,
       2,
     ),

@@ -127,4 +127,6 @@ export const LambdaEnvironment = {
   ...(serverEnv.BEDROCK_MODEL_ARN
     ? { BEDROCK_MODEL_ARN: serverEnv.BEDROCK_MODEL_ARN }
     : {}),
+  BEDROCK_EMBEDDING_MODEL_ID:
+    serverEnv.BEDROCK_EMBEDDING_MODEL_ID ?? "amazon.titan-embed-text-v2:0",
 };

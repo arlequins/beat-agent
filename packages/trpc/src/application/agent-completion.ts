@@ -87,6 +87,19 @@ export function collapseRepeatedParagraphs(value: string): string {
   return result.join("\n\n");
 }
 
+/** Keep automatic memory suggestions conservative and reviewable. */
+export function extractMemoryCandidate(question: string): string | undefined {
+  const normalized = question.replace(/\s+/gu, " ").trim();
+  if (!normalized || normalized.length > 240) return undefined;
+  if (
+    !/(선호|좋아|싫어|원해|원합니다|앞으로|기억해|기억해줘|기억해 주세요)/u.test(
+      normalized,
+    )
+  )
+    return undefined;
+  return `사용자 선호 또는 요청: ${normalized}`.slice(0, 500);
+}
+
 /** A single persistence path for normal tRPC responses and incremental HTTP responses. */
 export async function* streamAgentCompletion(
   services: TRPCServices,
@@ -122,6 +135,19 @@ export async function* streamAgentCompletion(
     const knowledgeReleaseId =
       (await services.agent.activeRelease(input.workspaceId))?.releaseId ??
       "live";
+    let profile: {
+      honorific: string;
+      preferredName: string;
+      responseStyle: string;
+      timezone: string;
+    } | null = null;
+    if (services.agent.getWorkspaceProfile) {
+      try {
+        profile = await services.agent.getWorkspaceProfile(actor);
+      } catch {
+        // Personalization is best effort; retrieval and completion remain available.
+      }
+    }
     await services.agent.addMessage(actor, {
       content: input.question,
       conversationId: input.conversationId,
@@ -166,8 +192,12 @@ export async function* streamAgentCompletion(
       })),
       profile: {
         id: "beat",
-        instructions:
+        instructions: [
           "You are Beat, Arlequin's private personal assistant. Reply in Korean unless Arlequin asks for another language. Be warm, concise, and practical. Use approved memory and retrieved documents only as contextual evidence, cite uncertainty rather than inventing facts, and protect privacy. For reflective or counseling-style conversations, listen carefully and offer supportive questions or small next steps; never diagnose, claim professional authority, or replace emergency or clinical care. Answer the user's question once. Do not narrate internal verification, mention duplicate answers, or repeat the same sentence or paragraph. If information is uncertain, state that once and ask at most one concise follow-up question. Return only the final answer for the user. Never reveal chain-of-thought or internal reasoning, and never emit <thinking>, <think>, or <analysis> tags.",
+          profile
+            ? `사용자 선호: ${profile.preferredName}${profile.honorific === "님" ? "님" : profile.honorific === "이름" ? "" : ""} · ${profile.timezone} · ${profile.responseStyle} 답변`
+            : "사용자 선호 정보가 없으므로 먼저 묻지 말고 질문 맥락에 맞춰 답한다.",
+        ].join("\n"),
         name: "Beat",
         workspaceId: input.workspaceId,
       },
@@ -240,6 +270,17 @@ export async function* streamAgentCompletion(
       knowledgeReleaseId,
       messageId: message.id,
     });
+    const candidate = extractMemoryCandidate(input.question);
+    if (candidate && services.agent.createMemory) {
+      try {
+        await services.agent.createMemory(actor, {
+          content: candidate,
+          sourceConversationId: input.conversationId,
+        });
+      } catch {
+        // A memory suggestion must never make an otherwise completed answer fail.
+      }
+    }
     yield { message, type: "complete" };
   } finally {
     await services.agent.releaseJob(lease);

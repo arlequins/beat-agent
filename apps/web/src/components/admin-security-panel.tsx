@@ -83,12 +83,29 @@ export function AdminSecurityPanel() {
         </div>
       </dl>
       {summary?.sessions.length ? (
-        <p className="text-muted-foreground text-sm">
-          가장 최근 토큰 발급:{" "}
-          {new Date(summary.sessions.at(-1)?.createdAt ?? "").toLocaleString(
-            "ko-KR",
-          )}
-        </p>
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-sm">최근 지속 로그인</p>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {summary.sessions.map((session, index) => (
+              <li
+                className="rounded-lg border bg-background/60 p-3 text-sm"
+                key={`${session.createdAt}-${session.expiresAt}`}
+              >
+                <p className="font-medium">로그인 기기 {index + 1}</p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  발급 {new Date(session.createdAt).toLocaleString("ko-KR")}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  만료 {new Date(session.expiresAt).toLocaleString("ko-KR")}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground text-xs">
+            공급자가 기기 식별자를 노출하지 않아 개별 해제 대신 전체 해제를
+            제공합니다.
+          </p>
+        </div>
       ) : null}
       {error ? (
         <p className="text-destructive text-sm" role="alert">

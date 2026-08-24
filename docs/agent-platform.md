@@ -22,7 +22,7 @@ adapter를 선택한다.
 | --- | --- | --- |
 | 모델 | loopback Ollama | production Amazon Nova Lite Converse Stream |
 | 주 저장소 | Docker MinIO | private versioned S3 |
-| 기억·지식 검색 | S3 객체의 embedding/keyword | 활성 S3 release, 이후 선택적 S3 Vectors |
+| 기억·지식 검색 | S3 객체의 embedding/keyword | Titan embedding + 활성 S3 release, S3 Vectors 확장 가능 |
 | 긴 작업 | 직접 실행 | SQS FIFO + Lambda worker |
 | 인증 | OIDC mock | 기존 Beat OIDC |
 
@@ -59,8 +59,9 @@ candidate -> approved
 ## 문서와 Citation
 
 텍스트, Markdown과 HTML은 서버에서 정규화한 뒤 최대 1,200자 청크로 나눈다.
-로컬 `nomic-embed-text`를 사용할 수 있으면 embedding cosine score를 사용하고,
-그렇지 않으면 keyword score로 대체한다.
+로컬에서는 `nomic-embed-text`를 사용하고, Bedrock이 구성된 운영에서는
+`amazon.titan-embed-text-v2:0`으로 embedding cosine score를 계산한다. 임베딩
+호출이 일시적으로 실패하면 keyword score로 안전하게 대체한다.
 
 PDF와 Open XML Office(`docx`, `pptx`, `xlsx`) 문서는 브라우저가 발급받은
 5분짜리 presigned URL로 workspace 전용 S3 prefix에 직접 올린다. API가 크기,

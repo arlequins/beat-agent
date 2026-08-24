@@ -20,6 +20,7 @@ import {
   DEFAULT_BEAT_GOURMET_API_URL,
 } from "../adaptors/beat-gourmet";
 import { createAwsBedrockConversePort } from "../adaptors/bedrock-converse";
+import { createAwsBedrockEmbeddingProvider } from "../adaptors/bedrock-embedding";
 import { deriveBeatSession } from "../adaptors/oidc-identity";
 import { createS3DocumentSource } from "../adaptors/s3-document-source";
 import { createS3JsonObjectStore } from "../adaptors/s3-json-store";
@@ -74,12 +75,16 @@ function documentSource() {
 }
 
 function embeddingProvider() {
-  return serverEnv.OLLAMA_BASE_URL
-    ? createOllamaEmbeddingProvider({
-        baseUrl: serverEnv.OLLAMA_BASE_URL,
-        model: serverEnv.OLLAMA_EMBEDDING_MODEL,
-      })
-    : undefined;
+  if (serverEnv.OLLAMA_BASE_URL)
+    return createOllamaEmbeddingProvider({
+      baseUrl: serverEnv.OLLAMA_BASE_URL,
+      model: serverEnv.OLLAMA_EMBEDDING_MODEL,
+    });
+  if (serverEnv.BEDROCK_MODEL_ID)
+    return createAwsBedrockEmbeddingProvider({
+      modelId: serverEnv.BEDROCK_EMBEDDING_MODEL_ID,
+    });
+  return undefined;
 }
 
 function quotaPolicy() {

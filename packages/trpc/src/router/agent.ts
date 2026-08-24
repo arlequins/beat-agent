@@ -18,6 +18,8 @@ import {
   reviewMemoryInputSchema,
   startIndexInputSchema,
   submitFeedbackInputSchema,
+  updateConversationInputSchema,
+  workspaceProfileInputSchema,
   workspaceScopeInputSchema,
 } from "@arlequins/validators";
 import type { TRPCRouterRecord } from "@trpc/server";
@@ -138,7 +140,10 @@ export const agentRouter = {
     .mutation(({ ctx, input }) =>
       ctx.services.agent.publishRelease(
         actor(ctx.session.user.id, input.workspaceId),
-        { minimumCitationRecall: input.minimumCitationRecall },
+        {
+          minimumCitationPrecision: input.minimumCitationPrecision,
+          minimumCitationRecall: input.minimumCitationRecall,
+        },
       ),
     ),
   conversations: protectedProcedure
@@ -152,6 +157,23 @@ export const agentRouter = {
     .input(conversationScopeInputSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.agent.archiveConversation(
+        actor(ctx.session.user.id, input.workspaceId),
+        input.conversationId,
+      ),
+    ),
+  renameConversation: protectedProcedure
+    .input(updateConversationInputSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.agent.renameConversation(
+        actor(ctx.session.user.id, input.workspaceId),
+        input.conversationId,
+        input.title,
+      ),
+    ),
+  deleteConversation: protectedProcedure
+    .input(conversationScopeInputSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.agent.deleteConversation(
         actor(ctx.session.user.id, input.workspaceId),
         input.conversationId,
       ),
@@ -322,6 +344,22 @@ export const agentRouter = {
       return ctx.services.agent.createMemory(
         actor(ctx.session.user.id, workspaceId),
         memory,
+      );
+    }),
+  workspaceProfile: protectedProcedure
+    .input(workspaceScopeInputSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.agent.getWorkspaceProfile(
+        actor(ctx.session.user.id, input.workspaceId),
+      ),
+    ),
+  updateWorkspaceProfile: protectedProcedure
+    .input(workspaceProfileInputSchema)
+    .mutation(({ ctx, input }) => {
+      const { workspaceId, ...profile } = input;
+      return ctx.services.agent.updateWorkspaceProfile(
+        actor(ctx.session.user.id, workspaceId),
+        profile,
       );
     }),
   reviewMemory: protectedProcedure

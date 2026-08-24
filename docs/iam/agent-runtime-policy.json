@@ -8,6 +8,12 @@
       "Resource": "arn:aws:bedrock:${AWS_REGION}::foundation-model/${BEDROCK_MODEL_ID}"
     },
     {
+      "Sid": "EmbedOnlyApprovedBedrockModel",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel"],
+      "Resource": "arn:aws:bedrock:${AWS_REGION}::foundation-model/${BEDROCK_EMBEDDING_MODEL_ID}"
+    },
+    {
       "Sid": "ReadOnlyApprovedKnowledgePrefix",
       "Effect": "Allow",
       "Action": ["s3:GetObject"],

@@ -41,7 +41,7 @@
     "sst:ws": "node ./scripts/sst-workspace.mjs",
     "test": "pnpm test:runtime && pnpm test:automation && pnpm architecture:check && turbo run test",
     "test:coverage": "dotenv -e .env.example -e .env -- vitest run --coverage --config vitest.coverage.config.ts",
-    "test:automation": "node --test scripts/validate-deployment-input.test.mjs",
+    "test:automation": "node --test scripts/validate-deployment-input.test.mjs scripts/verify-bedrock-production.test.mjs",
     "test:sst": "dotenv -e .env.example -e .env -- node scripts/test-sst.mjs",
     "test:runtime": "node --test scripts/check-runtime.test.mjs",
     "test:e2e": "node scripts/test-e2e.mjs",
@@ -49,6 +49,7 @@
     "env:pull": "pnpm -F @arlequins/sst-bootstrap run env:pull --",
     "env:push": "pnpm -F @arlequins/sst-bootstrap run env:push --",
     "env:check": "node scripts/check-env-sync.mjs",
+    "bedrock:verify": "node scripts/verify-bedrock-production.mjs",
     "gen:feature": "turbo gen feature"
   },
   "devDependencies": {

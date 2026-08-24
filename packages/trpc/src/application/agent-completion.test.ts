@@ -5,6 +5,7 @@ import type { TRPCServices } from "../context";
 import {
   type AgentCompletionEvent,
   collapseRepeatedParagraphs,
+  extractMemoryCandidate,
   streamAgentCompletion,
 } from "./agent-completion";
 
@@ -110,6 +111,13 @@ async function collect(
 }
 
 describe("streamAgentCompletion", () => {
+  it("only suggests reviewable memories for explicit preference language", () => {
+    expect(extractMemoryCandidate("한국어 답변을 선호해")).toContain(
+      "사용자 선호 또는 요청",
+    );
+    expect(extractMemoryCandidate("오늘 날씨가 궁금해")).toBeUndefined();
+  });
+
   it("emits lifecycle status events so clients can explain slow work", async () => {
     const { services } = createServices();
     await expect(

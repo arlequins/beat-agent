@@ -38,6 +38,8 @@ local application; the pages below explain design decisions and ongoing work.
 
 - [CI/CD operations](ci-cd.md): workflow responsibilities, required repository
   settings, deployment environment loading, and release flow.
+- [Bedrock production operations](bedrock-production.md): model contract,
+  protected access verification, runtime IAM boundary, and rollout checks.
 - [Deployment and supply-chain security](deployment-security.md): GitHub OIDC,
   protected environments, security checks, and response headers.
 - [Incident runbook](incident-runbook.md): triage, mitigation, recovery, and

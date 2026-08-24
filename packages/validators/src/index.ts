@@ -37,6 +37,10 @@ export const workspaceScopeInputSchema = z.object({ workspaceId: z.uuid() });
 export const createConversationInputSchema = workspaceScopeInputSchema.extend({
   title: z.string().trim().min(1).max(256).optional(),
 });
+export const updateConversationInputSchema = workspaceScopeInputSchema.extend({
+  conversationId: z.uuid(),
+  title: z.string().trim().min(1).max(256),
+});
 export const addMessageInputSchema = workspaceScopeInputSchema.extend({
   conversationId: z.uuid(),
   content: z.string().trim().min(1).max(100_000),
@@ -90,6 +94,12 @@ export const completeAgentInputSchema = workspaceScopeInputSchema.extend({
 export const conversationScopeInputSchema = workspaceScopeInputSchema.extend({
   conversationId: z.uuid(),
 });
+export const workspaceProfileInputSchema = workspaceScopeInputSchema.extend({
+  honorific: z.enum(["이름", "님", "선택 안 함"]),
+  preferredName: z.string().trim().min(1).max(80),
+  responseStyle: z.enum(["간결하게", "차분하게", "자세하게"]),
+  timezone: z.string().trim().min(1).max(80),
+});
 export const ingestTextDocumentInputSchema = workspaceScopeInputSchema.extend({
   content: z.string().trim().min(1).max(1_000_000),
   contentType: z
@@ -141,4 +151,5 @@ export const createEvaluationCaseInputSchema = workspaceScopeInputSchema.extend(
 );
 export const publishReleaseInputSchema = workspaceScopeInputSchema.extend({
   minimumCitationRecall: z.number().min(0).max(1).default(0.75),
+  minimumCitationPrecision: z.number().min(0).max(1).default(0.5),
 });

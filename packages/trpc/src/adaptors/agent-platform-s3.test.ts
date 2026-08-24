@@ -89,6 +89,54 @@ describe("S3 agent platform repository", () => {
     ).rejects.toThrow("archived");
   });
 
+  it("supports personal onboarding and privacy-preserving conversation deletion", async () => {
+    const { actor, repository } = await fixture();
+    const conversation = await repository.createConversation(
+      actor,
+      "초기 이름",
+    );
+    const renamed = await repository.renameConversation(
+      actor,
+      conversation.id,
+      "정리할 대화",
+    );
+    expect(renamed.title).toBe("정리할 대화");
+    const profile = await repository.updateWorkspaceProfile(actor, {
+      honorific: "님",
+      preferredName: "Arlequin",
+      responseStyle: "차분하게",
+      timezone: "Asia/Tokyo",
+    });
+    expect(await repository.getWorkspaceProfile(actor)).toMatchObject({
+      preferredName: profile.preferredName,
+      timezone: "Asia/Tokyo",
+    });
+    await expect(
+      repository.updateWorkspaceProfile(actor, {
+        honorific: "이름",
+        preferredName: "Arlequin",
+        responseStyle: "간결하게",
+        timezone: "Asia/Seoul",
+      }),
+    ).resolves.toMatchObject({ timezone: "Asia/Seoul" });
+    const memory = await repository.createMemory(actor, {
+      content: "중복 후보",
+    });
+    await expect(
+      repository.createMemory(actor, { content: "중복 후보" }),
+    ).resolves.toMatchObject({ id: memory.id });
+    await repository.addMessage(actor, {
+      content: "삭제할 내용",
+      conversationId: conversation.id,
+      role: "user",
+    });
+    await repository.deleteConversation(actor, conversation.id);
+    expect(await repository.listConversations(actor)).toEqual([]);
+    await expect(
+      repository.listMessages(actor, conversation.id),
+    ).rejects.toThrow("deleted");
+  });
+
   it("reuses an idempotent message across retries and rejects key reuse with new content", async () => {
     const { actor, repository, store } = await fixture();
     const conversation = await repository.createConversation(actor);
