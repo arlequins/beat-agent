@@ -15,6 +15,10 @@ import {
   createS3KnowledgeSearch,
   createS3MemorySearch,
 } from "../adaptors/agent-retrieval-s3";
+import {
+  createBeatGourmetReadClient,
+  DEFAULT_BEAT_GOURMET_API_URL,
+} from "../adaptors/beat-gourmet";
 import { createAwsBedrockConversePort } from "../adaptors/bedrock-converse";
 import { deriveBeatSession } from "../adaptors/oidc-identity";
 import { createS3DocumentSource } from "../adaptors/s3-document-source";
@@ -90,6 +94,21 @@ function quotaPolicy() {
   };
 }
 
+function accessToken(headers: Headers) {
+  const value = headers.get("authorization");
+  const match = value ? /^Bearer\s+(\S+)$/i.exec(value.trim()) : undefined;
+  return match?.[1];
+}
+
+function beatGourmetClient(headers: Headers) {
+  const token = accessToken(headers);
+  if (!token) return undefined;
+  return createBeatGourmetReadClient({
+    accessToken: token,
+    apiUrl: DEFAULT_BEAT_GOURMET_API_URL,
+  });
+}
+
 export function createAgentWorkerServices(): TRPCServices {
   const agent = agentRepository();
   const embedding = embeddingProvider();
@@ -140,6 +159,7 @@ export async function createTRPCContext(
 
   const knowledgeSearch = createS3KnowledgeSearch(agent, { embedding });
   const memorySearch = createS3MemorySearch(agent);
+  const gourmet = beatGourmetClient(options.headers);
   const tools = session
     ? createBeatMcpServer({
         authorization: {
@@ -152,6 +172,7 @@ export async function createTRPCContext(
         knowledgeSearch,
         memorySearch,
         repository: agent,
+        ...(gourmet ? { gourmet } : {}),
       }).toolRegistry
     : undefined;
 
@@ -181,6 +202,7 @@ export async function createTRPCContext(
       documentExtraction: createRichDocumentExtraction(),
       documentSecurity: createDocumentSecurityScanner(),
       ...(documentSource() ? { documentSource: documentSource() } : {}),
+      ...(gourmet ? { gourmet } : {}),
       ...(options.jobQueue ? { jobQueue: options.jobQueue } : {}),
       quota: quotaPolicy(),
       tools,

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createBeatMcpHttpHandler, createBeatMcpServer } from "./index";
 
-function createServer() {
+function createServer(withGourmet = false) {
   const authorization = {
     authorize: vi.fn(
       async ({
@@ -45,6 +45,22 @@ function createServer() {
     ]),
     submitFeedback: vi.fn().mockResolvedValue({ id: "feedback-1" }),
   };
+  const gourmet = {
+    listDrafts: vi.fn().mockResolvedValue([
+      {
+        id: "gourmet-1",
+        imageCount: 2,
+        menuName: "카레",
+        rating: 8,
+        restaurantName: "Beat 식당",
+        revisit: "yes" as const,
+        slug: "beat-restaurant-1",
+        status: "draft" as const,
+        updatedAt: "2026-08-24T00:00:00.000Z",
+        visitedAt: "2026-08-23",
+      },
+    ]),
+  };
   const dependencies = {
     authorization,
     knowledgeSearch: {
@@ -68,9 +84,10 @@ function createServer() {
         ]),
     },
     repository,
+    ...(withGourmet ? { gourmet } : {}),
   };
   const server = createBeatMcpServer(dependencies);
-  return { authorization, dependencies, repository, server };
+  return { authorization, dependencies, gourmet, repository, server };
 }
 
 const context = {
@@ -122,6 +139,31 @@ describe("Beat MCP server", () => {
     expect(repository.submitFeedback).toHaveBeenCalledWith(
       { userId: "user-1", workspaceId: "workspace-1" },
       { kind: "helpful", messageId: "message-1" },
+    );
+  });
+
+  it("exposes only read-only Gourmet draft summaries when configured", async () => {
+    const { gourmet, server } = createServer(true);
+    expect(server.listTools().map((tool) => tool.name)).toContain(
+      "gourmet.drafts.list",
+    );
+    const response = await server.callTool(
+      "gourmet.drafts.list",
+      { limit: 8 },
+      context,
+    );
+    expect(response.structuredContent).toEqual({
+      results: [
+        expect.objectContaining({
+          imageCount: 2,
+          menuName: "카레",
+          restaurantName: "Beat 식당",
+        }),
+      ],
+    });
+    expect(gourmet.listDrafts).toHaveBeenCalledWith(
+      { userId: "user-1", workspaceId: "workspace-1" },
+      8,
     );
   });
 

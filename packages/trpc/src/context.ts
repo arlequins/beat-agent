@@ -8,6 +8,7 @@ import type {
   MemorySearchPort,
   ModelProviderPort,
 } from "@arlequins/agent-core";
+import type { McpGourmetPort } from "@arlequins/agent-mcp";
 import type { AuthSession, TRPCAuth } from "@arlequins/auth";
 import type { Logger, Telemetry } from "@arlequins/logger";
 import type { JobQueuePort } from "@arlequins/service";
@@ -47,6 +48,7 @@ export type TRPCServices = {
   };
   knowledgeSearch: KnowledgeSearchPort;
   memorySearch: MemorySearchPort;
+  gourmet?: McpGourmetPort;
   jobQueue?: JobQueuePort;
   quota: {
     maxCompletionTokens: number;

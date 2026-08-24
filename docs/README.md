@@ -17,6 +17,8 @@ local application; the pages below explain design decisions and ongoing work.
   local identity provider, token validation, and application authorization.
 - [Agent operations](agent-operations.md): readiness monitoring, alert policy,
   quotas, S3 recovery, and retrieval-incident recovery.
+- [Beat Gourmet draft lookup](gourmet-agent-read.md): the authenticated,
+  read-only tool for checking draft image counts.
 - [Local agent demo](local-agent-demo.md): verify Ollama prerequisites and run
   the full no-cloud chat and RAG walkthrough.
 - [SST local testing](sst-local-testing.md): what can be validated without SST
