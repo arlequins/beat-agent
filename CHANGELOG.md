@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.14.0](https://github.com/arlequins/beat-agent/compare/v0.13.1...v0.14.0) (2026-08-24)
+
+
+### Features
+
+* **gourmet:** expose draft image counts to Beat Agent ([451869f](https://github.com/arlequins/beat-agent/commit/451869fa1ec9034d18d53f51ea7d09693bc313b0))
+
 ## [0.13.1](https://github.com/arlequins/beat-agent/compare/v0.13.0...v0.13.1) (2026-08-22)
 
 
