@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.15.0](https://github.com/arlequins/beat-agent/compare/v0.14.0...v0.15.0) (2026-08-24)
+
+
+### Features
+
+* complete agent production hardening ([#79](https://github.com/arlequins/beat-agent/issues/79)) ([9af8b4d](https://github.com/arlequins/beat-agent/commit/9af8b4d73454832eda29e05ffcd7b148f52935cb))
+
 ## [0.14.0](https://github.com/arlequins/beat-agent/compare/v0.13.1...v0.14.0) (2026-08-24)
 
 
