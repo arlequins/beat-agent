@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.15.1](https://github.com/arlequins/beat-agent/compare/v0.15.0...v0.15.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **ci:** skip unconfigured sandbox smoke endpoints ([0bff8d9](https://github.com/arlequins/beat-agent/commit/0bff8d920ba9bc37de0cfc120fe676a52fd5b89c))
+
 ## [0.15.0](https://github.com/arlequins/beat-agent/compare/v0.14.0...v0.15.0) (2026-08-24)
 
 
