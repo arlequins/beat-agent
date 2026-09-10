@@ -48,7 +48,12 @@ jobs:
           else
             URL="$GATEWAY_URL"
           fi
+          if [ -z "$URL" ]; then
+            echo "No sandbox endpoint configured for ${{ matrix.preset }}; skipping smoke test."
+            exit 0
+          fi
           node -e 'const value = process.argv[1]; const url = new URL(value); if (url.protocol !== "https:") throw new Error("Smoke endpoint must use HTTPS");' "$URL"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
       - name: Smoke test
+        if: steps.endpoint.outputs.url != ''
         run: node scripts/smoke-api.mjs "${{ steps.endpoint.outputs.url }}"
