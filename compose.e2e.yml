@@ -1,6 +1,6 @@
 services:
   minio-e2e:
-    image: minio/minio:latest
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     command: server /data
     environment:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-beat-e2e}
@@ -15,7 +15,7 @@ services:
     tmpfs:
       - /data
   minio-init:
-    image: minio/mc:latest
+    image: docker.io/pgsty/mc:RELEASE.2026-09-16T00-00-00Z
     depends_on:
       minio-e2e:
         condition: service_healthy
