@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.15.2](https://github.com/arlequins/beat-agent/compare/v0.15.1...v0.15.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* use maintained S3-compatible test images ([#83](https://github.com/arlequins/beat-agent/issues/83)) ([7e6c3c8](https://github.com/arlequins/beat-agent/commit/7e6c3c8117465cc78b38b1a96d4e47d26d5de754))
+
 ## [0.15.1](https://github.com/arlequins/beat-agent/compare/v0.15.0...v0.15.1) (2026-09-10)
 
 
