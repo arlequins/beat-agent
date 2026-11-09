@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.15.3](https://github.com/arlequins/beat-agent/compare/v0.15.2...v0.15.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* **cache:** bypass oversized S3 cache writes ([#86](https://github.com/arlequins/beat-agent/issues/86)) ([2e0b454](https://github.com/arlequins/beat-agent/commit/2e0b454ea620737135037b4f1694e7a74ba49fd6))
+
 ## [0.15.2](https://github.com/arlequins/beat-agent/compare/v0.15.1...v0.15.2) (2026-10-31)
 
 
