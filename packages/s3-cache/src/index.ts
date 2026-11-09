@@ -284,9 +284,9 @@ function buildCache(state: CacheState, namespaceParts: string[]): Cache {
         version: 2,
       };
       const body = stringify(envelope);
-      if (Buffer.byteLength(body) > state.maxObjectBytes)
-        throw new Error(`Cache object exceeds ${state.maxObjectBytes} bytes`);
       await recover("set", undefined, async () => {
+        if (Buffer.byteLength(body) > state.maxObjectBytes)
+          throw new Error(`Cache object exceeds ${state.maxObjectBytes} bytes`);
         await state.client.send(
           new PutObjectCommand({
             Body: body,
