@@ -203,12 +203,57 @@ describe("createS3Cache", () => {
       bucket: "cache-bucket",
       client: double.client,
       compressionThresholdBytes: 10_000,
+      errorMode: "throw",
       maxObjectBytes: 100,
     });
     await expect(limited.set("too-large", value)).rejects.toThrow(
       "Cache object exceeds 100 bytes",
     );
   });
+
+  it.each([undefined, "bypass"] as const)(
+    "returns oversized origin results uncached in %s error mode",
+    async (errorMode) => {
+      const double = createClientDouble();
+      const onError = vi.fn();
+      const onMetric = vi.fn();
+      const value = "oversized".repeat(128);
+      const loader = vi.fn(async () => value);
+      const cache = createS3Cache({
+        bucket: "cache-bucket",
+        client: double.client,
+        compressionThresholdBytes: 100_000,
+        ...(errorMode ? { errorMode } : {}),
+        maxObjectBytes: 200,
+        onError,
+        onMetric,
+      });
+
+      expect(
+        await Promise.all([
+          cache.getOrSet("large", loader),
+          cache.getOrSet("large", loader),
+        ]),
+      ).toEqual([value, value]);
+      expect(loader).toHaveBeenCalledOnce();
+      expect(double.objects.size).toBe(0);
+      expect(
+        double.send.mock.calls.some(
+          ([command]) => command instanceof PutObjectCommand,
+        ),
+      ).toBe(false);
+      expect(onError).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: "Cache object exceeds 200 bytes" }),
+        "set",
+      );
+      expect(onMetric).toHaveBeenCalledWith(
+        expect.objectContaining({ operation: "set", outcome: "error" }),
+      );
+
+      expect(await cache.getOrSet("large", loader)).toBe(value);
+      expect(loader).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it("reports cache outcomes and operation latency", async () => {
     const double = createClientDouble();
